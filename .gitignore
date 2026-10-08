@@ -28,7 +28,10 @@ ENV/
 *.png
 *.jpg
 *.jpeg
+!web/assets/*
 data/regime_state.json
+data/call_bookings.json
+*.zip
 
 # Backups
 *.bak

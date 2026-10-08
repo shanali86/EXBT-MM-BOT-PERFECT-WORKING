@@ -1,0 +1,24 @@
+# Hostinger Apache / LiteSpeed Configuration for exbotix.pro
+DirectoryIndex index.html index.php
+Options -Indexes +FollowSymLinks
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # Clean URLs (serve .html without showing extension)
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteCond %{REQUEST_FILENAME}\.html -f
+  RewriteRule ^([^\.]+)$ $1.html [NC,L]
+</IfModule>
+
+# Gzip Compression for Fast Loading
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript application/json image/svg+xml
+</IfModule>
+
+# Security Headers
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>

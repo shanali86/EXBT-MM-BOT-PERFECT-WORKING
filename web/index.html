@@ -1,0 +1,1542 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>Exbotix Tech — Institutional Crypto Market Making & Liquidity Management</title>
+  
+  <link rel="icon" type="image/svg+xml" href="assets/logo.svg">
+  <!-- Google Fonts & Tailwind CDN -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            dark: {
+              950: '#020611',
+              900: '#050c1b',
+              850: '#091427',
+              800: '#0d1d38',
+              700: '#14294d',
+            },
+            cyber: {
+              cyan: '#00f2fe',
+              emerald: '#00e676',
+              blue: '#3b82f6',
+              purple: '#8b5cf6',
+              amber: '#f59e0b'
+            }
+          },
+          animation: {
+            'marquee': 'marquee 22s linear infinite',
+            'float': 'float 3.5s ease-in-out infinite',
+          },
+          keyframes: {
+            marquee: {
+              '0%': { transform: 'translateX(0%)' },
+              '100%': { transform: 'translateX(-50%)' },
+            },
+            float: {
+              '0%, 100%': { transform: 'translateY(0px)' },
+              '50%': { transform: 'translateY(-6px)' },
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      background-color: #020611;
+      color: #f1f5f9;
+      overflow-x: hidden;
+      touch-action: manipulation;
+    }
+    /* Google Gemini Fluid Flow Background Canvas */
+    #geminiFlowCanvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.65;
+    }
+    .glass-card {
+      background: linear-gradient(135deg, rgba(9, 20, 39, 0.88) 0%, rgba(3, 8, 18, 0.97) 100%);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(56, 189, 248, 0.16);
+    }
+    .glass-card-hover {
+      transition: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .glass-card-hover:hover {
+      border-color: rgba(0, 242, 254, 0.55);
+      box-shadow: 0 16px 45px -10px rgba(0, 242, 254, 0.28);
+      transform: translateY(-4px);
+    }
+    .text-gradient-cyan {
+      background: linear-gradient(135deg, #00f2fe 0%, #38bdf8 50%, #818cf8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .text-gradient-emerald {
+      background: linear-gradient(135deg, #4ade80 0%, #00e676 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .grid-bg {
+      background-image: radial-gradient(rgba(56, 189, 248, 0.08) 1px, transparent 1px);
+      background-size: 28px 28px;
+    }
+    /* Floating animated exchange sidebar */
+    .exchange-sidebar {
+      position: fixed;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 50;
+    }
+    @media (max-width: 1024px) {
+      .exchange-sidebar { display: none; }
+    }
+    /* Floating Bottom WhatsApp Button */
+    .floating-wa-btn {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 99;
+      animation: float 3.5s ease-in-out infinite;
+    }
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #020611;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1e293b;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #00f2fe;
+    }
+  </style>
+</head>
+<body class="font-sans antialiased grid-bg selection:bg-cyber-cyan selection:text-dark-950 relative">
+
+  <!-- ==================== GOOGLE GEMINI FLUID NEURAL FLOW BACKGROUND ==================== -->
+  <canvas id="geminiFlowCanvas"></canvas>
+
+  <!-- ==================== FLOATING WHATSAPP BUTTON (COMPACT ON MOBILE) ==================== -->
+  <div class="floating-wa-btn">
+    <a href="https://api.whatsapp.com/send?phone=601111658029&text=Hello%20Exbotix%20Tech%20Desk!%20I%20would%20like%20to%20consult%20with%20your%20quants%20about%20Market%20Making%20services." target="_blank" aria-label="Chat on WhatsApp" class="group flex items-center justify-center w-12 h-12 sm:w-auto sm:h-auto sm:px-4 sm:py-2.5 rounded-full bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-400 text-slate-950 font-extrabold text-xs shadow-2xl shadow-emerald-500/50 hover:scale-105 transition duration-300 border-2 border-emerald-300/40">
+      <i class="fa-brands fa-whatsapp text-2xl sm:text-lg"></i>
+      <div class="hidden sm:flex flex-col text-left ml-2.5">
+        <span class="text-[9px] uppercase tracking-wider text-emerald-950 font-bold opacity-80">Instant Desk</span>
+        <span class="text-xs font-black tracking-tight">WhatsApp</span>
+      </div>
+    </a>
+  </div>
+
+  <!-- ==================== ANIMATED FLOATING EXCHANGE SIDEBAR (DESKTOP) ==================== -->
+  <aside class="exchange-sidebar">
+    <div class="glass-card p-2 rounded-2xl border-cyan-500/40 shadow-2xl flex flex-col items-center gap-2.5 backdrop-blur-xl">
+      <div class="text-[8px] font-mono font-bold text-cyan-400 rotate-180 uppercase tracking-widest py-1" style="writing-mode: vertical-rl;">
+        CONNECTED VENUES
+      </div>
+      
+      <!-- Binance -->
+      <a href="#exchanges" class="relative group w-9 h-9 rounded-xl bg-slate-900/90 border border-amber-500/30 hover:border-amber-400 flex items-center justify-center transition p-1.5 hover:scale-110 shadow-lg">
+        <svg viewBox="0 0 24 24" class="w-full h-full fill-[#F0B90B]"><path d="M16.624 13.9202l2.7175 2.7154-7.353 7.353-7.353-7.352 2.7175-2.7164 4.6355 4.6595 4.6356-4.6595zm4.6595-4.6356l2.7165 2.7164-2.7165 2.7175-2.7164-2.7175 2.7164-2.7164zm-8.3075-8.3121l7.353 7.353-2.7175 2.7175-4.6355-4.6356-4.6356 4.6356-2.7164-2.7175 7.352-7.353zm-8.312 8.3121l2.7164 2.7164-2.7164 2.7175-2.7165-2.7175 2.7165-2.7164zm8.312 4.6596l2.028 2.028-2.028 2.028-2.028-2.028 2.028-2.028z"/></svg>
+        <span class="absolute right-12 px-2.5 py-1 rounded-lg bg-dark-900 border border-amber-500/60 text-[10px] font-mono text-amber-300 font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition shadow-2xl pointer-events-none">
+          BINANCE • 99.99% UP
+        </span>
+      </a>
+
+      <!-- OKX -->
+      <a href="#exchanges" class="relative group w-9 h-9 rounded-xl bg-slate-900/90 border border-slate-700 hover:border-white flex items-center justify-center transition p-1.5 hover:scale-110 shadow-lg">
+        <svg viewBox="0 0 24 24" class="w-full h-full fill-white"><path d="M4 4h5v5H4V4zm11 0h5v5h-5V4zM4 15h5v5H4v-5zm11 0h5v5h-5v-5zm-5.5-5.5h3v3h-3v-3z"/></svg>
+        <span class="absolute right-12 px-2.5 py-1 rounded-lg bg-dark-900 border border-slate-600 text-[10px] font-mono text-white font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition shadow-2xl pointer-events-none">
+          OKX • ACTIVE
+        </span>
+      </a>
+
+      <!-- Coinbase -->
+      <a href="#exchanges" class="relative group w-9 h-9 rounded-xl bg-slate-900/90 border border-blue-500/40 hover:border-blue-400 flex items-center justify-center transition p-1.5 hover:scale-110 shadow-lg">
+        <svg viewBox="0 0 24 24" class="w-full h-full fill-[#0052FF]"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/></svg>
+        <span class="absolute right-12 px-2.5 py-1 rounded-lg bg-dark-900 border border-blue-500 text-[10px] font-mono text-blue-300 font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition shadow-2xl pointer-events-none">
+          COINBASE • TIER-1
+        </span>
+      </a>
+
+      <!-- Bybit -->
+      <a href="#exchanges" class="relative group w-9 h-9 rounded-xl bg-slate-900/90 border border-yellow-500/40 hover:border-yellow-400 flex items-center justify-center transition p-1 hover:scale-110 shadow-lg">
+        <span class="font-extrabold text-[9px] text-[#F7A600] font-mono tracking-tighter">BYBIT</span>
+        <span class="absolute right-12 px-2.5 py-1 rounded-lg bg-dark-900 border border-yellow-500/60 text-[10px] font-mono text-yellow-300 font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition shadow-2xl pointer-events-none">
+          BYBIT • SUB-15MS
+        </span>
+      </a>
+
+      <!-- KuCoin -->
+      <a href="#exchanges" class="relative group w-9 h-9 rounded-xl bg-slate-900/90 border border-emerald-500/40 hover:border-emerald-400 flex items-center justify-center transition p-1.5 hover:scale-110 shadow-lg">
+        <svg viewBox="0 0 24 24" class="w-full h-full fill-[#24AE8F]"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 14.5h-2v-5h2v5zm0-7h-2V7h2v2.5z"/></svg>
+        <span class="absolute right-12 px-2.5 py-1 rounded-lg bg-dark-900 border border-emerald-500 text-[10px] font-mono text-emerald-300 font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition shadow-2xl pointer-events-none">
+          KUCOIN • LOW LATENCY
+        </span>
+      </a>
+
+      <!-- Bitget -->
+      <a href="#exchanges" class="relative group w-9 h-9 rounded-xl bg-slate-900/90 border border-cyan-500/40 hover:border-cyan-400 flex items-center justify-center transition p-1 hover:scale-110 shadow-lg">
+        <span class="font-black text-[9px] text-cyan-300 font-mono tracking-tighter">BITGET</span>
+        <span class="absolute right-12 px-2.5 py-1 rounded-lg bg-dark-900 border border-cyan-400 text-[10px] font-mono text-cyan-300 font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition shadow-2xl pointer-events-none">
+          BITGET • SYNCED
+        </span>
+      </a>
+
+      <!-- LBank (Official Engine Partner) -->
+      <a href="#exchanges" class="relative group w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-950 to-blue-900 border border-cyan-400 flex items-center justify-center transition p-1.5 hover:scale-110 shadow-lg animate-pulse">
+        <i class="fa-solid fa-building-columns text-cyan-300 text-xs"></i>
+        <span class="absolute right-12 px-2.5 py-1 rounded-lg bg-dark-900 border border-cyan-400 text-[10px] font-mono text-cyan-300 font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition shadow-2xl pointer-events-none">
+          LBANK • PRIMARY DESK
+        </span>
+      </a>
+
+      <div class="w-4 h-px bg-slate-800 my-0.5"></div>
+
+      <!-- Live Desk Ping -->
+      <div class="text-[8px] font-mono text-emerald-400 font-bold flex items-center gap-1">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+        8ms
+      </div>
+    </div>
+  </aside>
+
+  <!-- ==================== TOP TICKER BAR ==================== -->
+  <div class="w-full bg-dark-900/95 border-b border-cyan-900/40 backdrop-blur-md py-1.5 px-3 sm:px-6 text-xs font-mono text-slate-400 z-50 sticky top-0 flex items-center justify-between">
+    <div class="flex items-center gap-3 sm:gap-6 overflow-hidden whitespace-nowrap" id="topTickerBar">
+      <div class="flex items-center gap-1.5 flex-shrink-0">
+        <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+        <span class="text-cyan-300 font-bold uppercase tracking-wider text-[10px] sm:text-xs">
+          <span class="sm:hidden">🇲🇾 EXBOTIX TECH • KUALA LUMPUR QUANT DESK</span>
+          <span class="hidden sm:inline">EXBOTIX TECH (MALAYSIA) • QUANTITATIVE LIQUIDITY DESK</span>
+        </span>
+      </div>
+      <div class="hidden sm:flex items-center gap-1.5 flex-shrink-0">
+        <span class="text-white">BTC/USDT</span>
+        <span class="text-emerald-400 font-bold">$67,480.50</span>
+        <span class="text-emerald-400 text-[10px]">▲ +2.36%</span>
+      </div>
+      <div class="hidden md:flex items-center gap-1.5 flex-shrink-0">
+        <span class="text-white">SPREAD BENCHMARK</span>
+        <span class="text-cyan-300 font-bold">0.01% – 0.15%</span>
+      </div>
+    </div>
+    
+    <!-- WhatsApp Desk in ticker - hidden on mobile so it doesn't crowd out the ticker -->
+    <div class="hidden sm:flex items-center gap-2 flex-shrink-0">
+      <a href="https://api.whatsapp.com/send?phone=601111658029&text=Hello%20Exbotix%20Tech!%20I%20would%20like%20to%20discuss%20Market%20Making%20services." target="_blank" class="text-emerald-300 hover:text-white transition text-xs font-bold flex items-center gap-1.5 bg-emerald-950/90 hover:bg-emerald-900 px-3 py-1 rounded-lg border border-emerald-500/50 shadow-md">
+        <i class="fa-brands fa-whatsapp text-emerald-400 text-sm"></i>
+        <span>WhatsApp Desk</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- ==================== MAIN NAVIGATION ==================== -->
+  <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4 flex items-center justify-between relative z-40">
+    <div class="flex items-center gap-3">
+      <!-- Exbotix Tech Vector Logo -->
+      <a href="/" class="flex items-center gap-2">
+        <img src="assets/logo.svg" alt="Exbotix Tech Malaysia" class="h-8 sm:h-11 w-auto object-contain drop-shadow-[0_0_16px_rgba(0,242,254,0.45)]">
+      </a>
+    </div>
+
+    <!-- Desktop Navigation Links -->
+    <div class="hidden lg:flex items-center gap-6 text-xs font-semibold text-slate-300 uppercase font-mono tracking-wider">
+      <a href="#services" class="hover:text-cyber-cyan transition duration-200">Our Services</a>
+      <a href="#pricing" class="hover:text-cyber-cyan transition duration-200">Packages</a>
+      <a href="#performance" class="hover:text-cyber-cyan transition duration-200">Performance Option</a>
+      <a href="#research" class="hover:text-cyber-cyan transition duration-200">Research & Insights</a>
+      <a href="#faq" class="hover:text-cyber-cyan transition duration-200">FAQ</a>
+      <a href="/blog.html" class="hover:text-cyber-cyan text-cyan-400 transition duration-200">Blog</a>
+      <a href="#contact" class="hover:text-cyber-cyan transition duration-200">Contact Us</a>
+    </div>
+
+    <!-- Right Header Actions -->
+    <div class="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+      <!-- WhatsApp (Desktop/Tablet Only) -->
+      <a href="https://api.whatsapp.com/send?phone=601111658029&text=Hello%20Exbotix%20Tech%20Desk!%20I%20would%20like%20to%20schedule%20a%20strategy%20call." target="_blank" class="hidden sm:flex px-3.5 sm:px-4 py-2 rounded-xl font-bold text-xs tracking-wide bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 shadow-lg shadow-emerald-500/25 transition duration-300 items-center gap-1.5">
+        <i class="fa-brands fa-whatsapp text-sm"></i>
+        <span>Chat on WhatsApp</span>
+      </a>
+
+      <!-- Book Call Button -->
+      <button onclick="openBookingModal('Navbar Consultation')" class="px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl font-bold text-xs tracking-wide bg-slate-900 hover:bg-slate-800 text-cyan-300 border border-cyan-500/40 hover:border-cyan-400 shadow-md transition duration-300 flex items-center gap-1.5">
+        <i class="fa-regular fa-calendar-check text-cyan-400"></i>
+        <span class="hidden sm:inline">Book Strategy Call</span>
+        <span class="sm:hidden">Book Call</span>
+      </button>
+
+      <!-- Mobile Hamburger Button -->
+      <button id="mobileNavToggle" onclick="toggleMobileNav()" class="lg:hidden w-8 h-8 rounded-xl bg-slate-900 border border-slate-700 hover:border-cyan-400 text-cyan-300 flex items-center justify-center text-sm focus:outline-none transition">
+        <i class="fa-solid fa-bars" id="mobileNavIcon"></i>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Mobile Slide Drawer Menu -->
+  <div id="mobileMenu" class="hidden lg:hidden bg-dark-900/95 border-b border-cyan-900/40 px-4 py-4 space-y-3 z-40 backdrop-blur-xl relative font-mono text-xs">
+    <div class="grid grid-cols-2 gap-2 text-slate-300">
+      <a href="#services" onclick="toggleMobileNav()" class="px-3 py-2 rounded-lg bg-slate-900/80 border border-slate-800 hover:border-cyan-400 hover:text-cyan-300 flex items-center gap-2">
+        <i class="fa-solid fa-layer-group text-cyan-400 text-xs"></i> Our Services
+      </a>
+      <a href="#pricing" onclick="toggleMobileNav()" class="px-3 py-2 rounded-lg bg-slate-900/80 border border-slate-800 hover:border-cyan-400 hover:text-cyan-300 flex items-center gap-2">
+        <i class="fa-solid fa-tag text-emerald-400 text-xs"></i> Packages
+      </a>
+      <a href="#performance" onclick="toggleMobileNav()" class="px-3 py-2 rounded-lg bg-slate-900/80 border border-slate-800 hover:border-cyan-400 hover:text-cyan-300 flex items-center gap-2">
+        <i class="fa-solid fa-chart-line text-purple-400 text-xs"></i> Performance
+      </a>
+      <a href="/blog.html" class="px-3 py-2 rounded-lg bg-slate-900/80 border border-slate-800 hover:border-cyan-400 hover:text-cyan-300 flex items-center gap-2 text-cyan-400">
+        <i class="fa-regular fa-newspaper text-cyan-400 text-xs"></i> Research & Blog
+      </a>
+      <a href="#faq" onclick="toggleMobileNav()" class="px-3 py-2 rounded-lg bg-slate-900/80 border border-slate-800 hover:border-cyan-400 hover:text-cyan-300 flex items-center gap-2">
+        <i class="fa-solid fa-circle-question text-amber-400 text-xs"></i> FAQ
+      </a>
+      <a href="#contact" onclick="toggleMobileNav()" class="px-3 py-2 rounded-lg bg-slate-900/80 border border-slate-800 hover:border-cyan-400 hover:text-cyan-300 flex items-center gap-2">
+        <i class="fa-regular fa-envelope text-blue-400 text-xs"></i> Contact Us
+      </a>
+    </div>
+    <div class="pt-2">
+      <a href="https://api.whatsapp.com/send?phone=601111658029&text=Hello%20Exbotix%20Tech%20Desk!%20I%20would%20like%20to%20schedule%20a%20strategy%20call." target="_blank" class="w-full py-2.5 rounded-xl font-bold text-xs tracking-wide bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25">
+        <i class="fa-brands fa-whatsapp text-sm"></i>
+        <span>Chat on WhatsApp (+60 Desk)</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- ==================== HERO SECTION ==================== -->
+  <section class="relative pt-4 pb-12 sm:pt-8 sm:pb-16 md:pt-12 md:pb-20 overflow-hidden z-10">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+      
+      <!-- Top Tagline (Strictly 1 line on both mobile and desktop) -->
+      <div class="text-center mb-3">
+        <div class="inline-flex items-center gap-2 px-3 sm:px-4 py-1 sm:py-1.5 rounded-full bg-cyan-950/80 border border-cyan-400/40 text-[9px] sm:text-xs font-mono tracking-wider text-cyan-300 shadow-inner shadow-cyan-500/20 max-w-full">
+          <span class="w-1.5 h-1.5 rounded-full bg-cyber-cyan animate-ping flex-shrink-0"></span>
+          <span class="sm:hidden font-bold">🇲🇾 MALAYSIA WEB3 QUANT DESK • 24/7 MM</span>
+          <span class="hidden sm:inline font-bold">MALAYSIAN WEB3 QUANTITATIVE DESK • HIGH-FREQUENCY LIQUIDITY</span>
+        </div>
+      </div>
+
+      <!-- Main Headline (Fluid text, no cutting off, wraps naturally on mobile) -->
+      <div class="text-center max-w-4xl mx-auto space-y-3">
+        <h1 class="text-2xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-white leading-tight">
+          Deep Liquidity & High-Velocity <span class="text-gradient-cyan">Market Making</span> for Web3 Tokens
+        </h1>
+        
+        <!-- Clean Subtitle -->
+        <p class="text-xs sm:text-sm md:text-base text-slate-300 max-w-2xl mx-auto leading-relaxed px-1">
+          Exbotix Tech engineers dense orderbook depth, ultra-tight spreads (0.01%–0.15%), and organic multi-exchange trading velocity for digital asset founders.
+        </p>
+
+        <!-- 3 Highlight Value Cards (Clean compact spacing on mobile) -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 max-w-3xl mx-auto text-left">
+          <div class="glass-card p-3 rounded-xl border-cyan-500/30 shadow-md">
+            <div class="flex items-center gap-2 mb-1">
+              <div class="w-6 h-6 rounded-lg bg-cyan-500/20 text-cyber-cyan flex items-center justify-center text-xs flex-shrink-0">
+                <i class="fa-solid fa-droplet"></i>
+              </div>
+              <span class="text-xs sm:text-sm font-bold text-white">Dense Depth Bands</span>
+            </div>
+            <p class="text-[11px] text-slate-400 leading-tight">Multi-level ladder quotes absorbing whale exits without price slippage.</p>
+          </div>
+
+          <div class="glass-card p-3 rounded-xl border-emerald-500/30 shadow-md">
+            <div class="flex items-center gap-2 mb-1">
+              <div class="w-6 h-6 rounded-lg bg-emerald-500/20 text-cyber-emerald flex items-center justify-center text-xs flex-shrink-0">
+                <i class="fa-solid fa-chart-simple"></i>
+              </div>
+              <span class="text-xs sm:text-sm font-bold text-white">Sub-0.10% Spreads</span>
+            </div>
+            <p class="text-[11px] text-slate-400 leading-tight">Ultra-tight corridors driving organic retail and institutional volume.</p>
+          </div>
+
+          <div class="glass-card p-3 rounded-xl border-blue-500/30 shadow-md">
+            <div class="flex items-center gap-2 mb-1">
+              <div class="w-6 h-6 rounded-lg bg-blue-500/20 text-cyber-blue flex items-center justify-center text-xs flex-shrink-0">
+                <i class="fa-solid fa-shield-halved"></i>
+              </div>
+              <span class="text-xs sm:text-sm font-bold text-white">Zero Wash-Trading Risk</span>
+            </div>
+            <p class="text-[11px] text-slate-400 leading-tight">Proprietary STP registry coordinating multi-account quoting across isolated APIs.</p>
+          </div>
+        </div>
+
+        <!-- Hero CTAs (Properly stacked and sized, completely unhindered by floating buttons) -->
+        <div class="pt-3 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2.5 max-w-md mx-auto">
+          <a href="https://api.whatsapp.com/send?phone=601111658029&text=Hello%20Exbotix%20Tech!%20I%20would%20like%20to%20book%20an%20Institutional%20Market%20Making%20consultation%20for%20our%20token." target="_blank" class="w-full sm:w-auto px-6 py-3 rounded-xl font-bold text-xs tracking-wider uppercase bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 shadow-xl shadow-emerald-500/25 flex items-center justify-center gap-2 transition duration-300">
+            <i class="fa-brands fa-whatsapp text-base"></i>
+            <span>Chat on WhatsApp</span>
+          </a>
+
+          <button onclick="openBookingModal('Hero Consultation')" class="w-full sm:w-auto px-6 py-3 rounded-xl font-bold text-xs tracking-wider uppercase bg-slate-900/90 hover:bg-slate-800 text-cyan-300 border border-cyan-500/40 hover:border-cyan-400 shadow-lg flex items-center justify-center gap-2 transition duration-300">
+            <i class="fa-regular fa-calendar-check text-cyan-400"></i>
+            <span>Book Strategy Call</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ==================== ANIMATED INFINITE EXCHANGES MARQUEE ==================== -->
+  <section id="exchanges" class="py-5 bg-dark-950/90 border-t border-b border-cyan-900/30 overflow-hidden relative z-10 backdrop-blur-md">
+    <div class="text-center text-[10px] font-mono uppercase tracking-widest text-slate-400 mb-2.5 px-4">
+      SUPPORTED TIER-1 GLOBAL EXCHANGES • HIGH-FREQUENCY REST & WEBSOCKET ENGINE
+    </div>
+
+    <!-- Infinite Scrolling Track -->
+    <div class="flex overflow-hidden relative w-full">
+      <div class="flex items-center gap-8 sm:gap-10 animate-marquee whitespace-nowrap py-1 text-xs sm:text-sm font-bold font-mono">
+        
+        <!-- Binance -->
+        <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900/70 border border-amber-500/30 text-white flex-shrink-0">
+          <svg viewBox="0 0 24 24" class="w-4 h-4 fill-[#F0B90B]"><path d="M16.624 13.9202l2.7175 2.7154-7.353 7.353-7.353-7.352 2.7175-2.7164 4.6355 4.6595 4.6356-4.6595zm4.6595-4.6356l2.7165 2.7164-2.7165 2.7175-2.7164-2.7175 2.7164-2.7164zm-8.3075-8.3121l7.353 7.353-2.7175 2.7175-4.6355-4.6356-4.6356 4.6356-2.7164-2.7175 7.352-7.353zm-8.312 8.3121l2.7164 2.7164-2.7164 2.7175-2.7165-2.7175 2.7165-2.7164zm8.312 4.6596l2.028 2.028-2.028 2.028-2.028-2.028 2.028-2.028z"/></svg>
+          <span>BINANCE</span>
+          <span class="text-[9px] text-emerald-400">● 99.99%</span>
+        </div>
+
+        <!-- OKX -->
+        <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900/70 border border-slate-700 text-white flex-shrink-0">
+          <svg viewBox="0 0 24 24" class="w-4 h-4 fill-white"><path d="M4 4h5v5H4V4zm11 0h5v5h-5V4zM4 15h5v5H4v-5zm11 0h5v5h-5v-5zm-5.5-5.5h3v3h-3v-3z"/></svg>
+          <span>OKX</span>
+          <span class="text-[9px] text-emerald-400">● ACTIVE</span>
+        </div>
+
+        <!-- Coinbase -->
+        <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900/70 border border-blue-500/30 text-white flex-shrink-0">
+          <svg viewBox="0 0 24 24" class="w-4 h-4 fill-[#0052FF]"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/></svg>
+          <span>COINBASE</span>
+          <span class="text-[9px] text-blue-400">● SYNC</span>
+        </div>
+
+        <!-- Bybit -->
+        <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900/70 border border-yellow-500/30 text-white flex-shrink-0">
+          <span class="text-[#F7A600] font-black text-xs">BYBIT</span>
+          <span class="text-[9px] text-emerald-400">● 8MS</span>
+        </div>
+
+        <!-- KuCoin -->
+        <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900/70 border border-emerald-500/30 text-white flex-shrink-0">
+          <svg viewBox="0 0 24 24" class="w-4 h-4 fill-[#24AE8F]"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 14.5h-2v-5h2v5zm0-7h-2V7h2v2.5z"/></svg>
+          <span>KUCOIN</span>
+          <span class="text-[9px] text-emerald-400">● READY</span>
+        </div>
+
+        <!-- Bitget -->
+        <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900/70 border border-cyan-500/30 text-white flex-shrink-0">
+          <span class="text-cyan-400 font-black text-xs">BITGET</span>
+          <span class="text-[9px] text-emerald-400">● LIVE</span>
+        </div>
+
+        <!-- LBank -->
+        <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gradient-to-r from-cyan-950 to-blue-900 border border-cyan-400 text-cyan-300 flex-shrink-0">
+          <i class="fa-solid fa-building-columns text-cyan-300 text-xs"></i>
+          <span class="font-bold">LBANK</span>
+          <span class="text-[9px] text-cyan-300 font-bold">● ZERO-GAP</span>
+        </div>
+
+        <!-- Gate.io & MEXC -->
+        <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900/70 border border-purple-500/30 text-white flex-shrink-0">
+          <i class="fa-solid fa-globe text-purple-400 text-xs"></i>
+          <span>GATE / MEXC</span>
+          <span class="text-[9px] text-emerald-400">● SYNC</span>
+        </div>
+
+        <!-- DUPLICATE FOR INFINITE LOOP -->
+        <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900/70 border border-amber-500/30 text-white flex-shrink-0">
+          <svg viewBox="0 0 24 24" class="w-4 h-4 fill-[#F0B90B]"><path d="M16.624 13.9202l2.7175 2.7154-7.353 7.353-7.353-7.352 2.7175-2.7164 4.6355 4.6595 4.6356-4.6595zm4.6595-4.6356l2.7165 2.7164-2.7165 2.7175-2.7164-2.7175 2.7164-2.7164zm-8.3075-8.3121l7.353 7.353-2.7175 2.7175-4.6355-4.6356-4.6356 4.6356-2.7164-2.7175 7.352-7.353zm-8.312 8.3121l2.7164 2.7164-2.7164 2.7175-2.7165-2.7175 2.7165-2.7164zm8.312 4.6596l2.028 2.028-2.028 2.028-2.028-2.028 2.028-2.028z"/></svg>
+          <span>BINANCE</span>
+          <span class="text-[9px] text-emerald-400">● 99.99%</span>
+        </div>
+        <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gradient-to-r from-cyan-950 to-blue-900 border border-cyan-400 text-cyan-300 flex-shrink-0">
+          <i class="fa-solid fa-building-columns text-cyan-300 text-xs"></i>
+          <span class="font-bold">LBANK</span>
+          <span class="text-[9px] text-cyan-300 font-bold">● ZERO-GAP</span>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== 1. OUR SERVICES SECTION ==================== -->
+  <section id="services" class="py-14 md:py-20 relative z-10 bg-dark-900/60 border-b border-cyan-900/20">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      
+      <!-- Section Header -->
+      <div class="text-center max-w-3xl mx-auto mb-10 space-y-2">
+        <div class="text-[10px] sm:text-xs font-mono font-bold tracking-widest text-cyan-400 uppercase">
+          ALGORITHMIC EXECUTION SUITE
+        </div>
+        <h2 class="text-2xl sm:text-3xl md:text-4xl font-extrabold text-white">
+          Our Quantitative <span class="text-gradient-cyan">Market Making Services</span>
+        </h2>
+        <p class="text-xs sm:text-sm text-slate-300 leading-relaxed">
+          High-frequency liquidity provisioning, spread stabilization, and multi-venue compliance engineered in Kuala Lumpur, Malaysia.
+        </p>
+      </div>
+
+      <!-- 10 Services Grid (Clean 5x2 layout, fully responsive on mobile) -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 sm:gap-4">
+        
+        <!-- 1. Order Book Liquidity -->
+        <div class="glass-card p-4 rounded-xl sm:rounded-2xl glass-card-hover border-slate-800">
+          <div class="w-9 h-9 rounded-lg bg-cyan-500/15 border border-cyan-400/30 flex items-center justify-center text-cyber-cyan text-sm mb-2.5">
+            <i class="fa-solid fa-chart-column"></i>
+          </div>
+          <h3 class="text-sm font-bold text-white mb-1">Order Book Liquidity</h3>
+          <p class="text-xs text-slate-400 leading-snug">Dense ladder quoting on both buy & sell sides preventing slippery drops.</p>
+        </div>
+
+        <!-- 2. Buy & Sell Order Placement -->
+        <div class="glass-card p-4 rounded-xl sm:rounded-2xl glass-card-hover border-slate-800">
+          <div class="w-9 h-9 rounded-lg bg-emerald-500/15 border border-emerald-400/30 flex items-center justify-center text-cyber-emerald text-sm mb-2.5">
+            <i class="fa-solid fa-right-left"></i>
+          </div>
+          <h3 class="text-sm font-bold text-white mb-1">Buy & Sell Order Placement</h3>
+          <p class="text-xs text-slate-400 leading-snug">Place-First-Cancel-Later dynamic orders with randomized organic sizing.</p>
+        </div>
+
+        <!-- 3. Bid/Ask Spread Management -->
+        <div class="glass-card p-4 rounded-xl sm:rounded-2xl glass-card-hover border-slate-800">
+          <div class="w-9 h-9 rounded-lg bg-blue-500/15 border border-blue-400/30 flex items-center justify-center text-cyber-blue text-sm mb-2.5">
+            <i class="fa-solid fa-percent"></i>
+          </div>
+          <h3 class="text-sm font-bold text-white mb-1">Bid/Ask Spread Management</h3>
+          <p class="text-xs text-slate-400 leading-snug">Ultra-tight spreads (0.01% - 0.50%) reducing slippage for retail traders.</p>
+        </div>
+
+        <!-- 4. Trading Volume Support -->
+        <div class="glass-card p-4 rounded-xl sm:rounded-2xl glass-card-hover border-slate-800">
+          <div class="w-9 h-9 rounded-lg bg-purple-500/15 border border-purple-400/30 flex items-center justify-center text-cyber-purple text-sm mb-2.5">
+            <i class="fa-solid fa-bars-staggered"></i>
+          </div>
+          <h3 class="text-sm font-bold text-white mb-1">Trading Volume Support</h3>
+          <p class="text-xs text-slate-400 leading-snug">Continuous organic volume velocity driving CoinMarketCap ranking trust.</p>
+        </div>
+
+        <!-- 5. Market Depth Management -->
+        <div class="glass-card p-4 rounded-xl sm:rounded-2xl glass-card-hover border-slate-800">
+          <div class="w-9 h-9 rounded-lg bg-amber-500/15 border border-amber-400/30 flex items-center justify-center text-amber-400 text-sm mb-2.5">
+            <i class="fa-solid fa-layer-group"></i>
+          </div>
+          <h3 class="text-sm font-bold text-white mb-1">Market Depth Management</h3>
+          <p class="text-xs text-slate-400 leading-snug">Thick cumulative depth bands capable of absorbing sudden whale dumps.</p>
+        </div>
+
+        <!-- 6. Volatility & Price Stability -->
+        <div class="glass-card p-4 rounded-xl sm:rounded-2xl glass-card-hover border-slate-800">
+          <div class="w-9 h-9 rounded-lg bg-cyan-500/15 border border-cyan-400/30 flex items-center justify-center text-cyber-cyan text-sm mb-2.5">
+            <i class="fa-solid fa-shield-heart"></i>
+          </div>
+          <h3 class="text-sm font-bold text-white mb-1">Volatility & Price Stability</h3>
+          <p class="text-xs text-slate-400 leading-snug">Macro BTC regime correlation engine shielding from broader crashes.</p>
+        </div>
+
+        <!-- 7. 24/7 Automated MM -->
+        <div class="glass-card p-4 rounded-xl sm:rounded-2xl glass-card-hover border-slate-800">
+          <div class="w-9 h-9 rounded-lg bg-emerald-500/15 border border-emerald-400/30 flex items-center justify-center text-cyber-emerald text-sm mb-2.5">
+            <i class="fa-regular fa-clock"></i>
+          </div>
+          <h3 class="text-sm font-bold text-white mb-1">24/7 Automated MM</h3>
+          <p class="text-xs text-slate-400 leading-snug">Uninterrupted cloud VPS execution with watchdog auto-healing.</p>
+        </div>
+
+        <!-- 8. API / Bot Integration -->
+        <div class="glass-card p-4 rounded-xl sm:rounded-2xl glass-card-hover border-slate-800">
+          <div class="w-9 h-9 rounded-lg bg-blue-500/15 border border-blue-400/30 flex items-center justify-center text-cyber-blue text-sm mb-2.5">
+            <i class="fa-solid fa-gears"></i>
+          </div>
+          <h3 class="text-sm font-bold text-white mb-1">API / Bot Integration</h3>
+          <p class="text-xs text-slate-400 leading-snug">Sub-millisecond low latency REST and WebSocket integration.</p>
+        </div>
+
+        <!-- 9. Liquidity Monitoring -->
+        <div class="glass-card p-4 rounded-xl sm:rounded-2xl glass-card-hover border-slate-800">
+          <div class="w-9 h-9 rounded-lg bg-pink-500/15 border border-pink-400/30 flex items-center justify-center text-pink-400 text-sm mb-2.5">
+            <i class="fa-solid fa-chart-pie"></i>
+          </div>
+          <h3 class="text-sm font-bold text-white mb-1">Liquidity Monitoring</h3>
+          <p class="text-xs text-slate-400 leading-snug">Daily visual report cards and automated Telegram/WhatsApp dispatch.</p>
+        </div>
+
+        <!-- 10. Exchange Coordination -->
+        <div class="glass-card p-4 rounded-xl sm:rounded-2xl glass-card-hover border-slate-800">
+          <div class="w-9 h-9 rounded-lg bg-indigo-500/15 border border-indigo-400/30 flex items-center justify-center text-indigo-400 text-sm mb-2.5">
+            <i class="fa-solid fa-network-wired"></i>
+          </div>
+          <h3 class="text-sm font-bold text-white mb-1">Exchange Coordination</h3>
+          <p class="text-xs text-slate-400 leading-snug">Cross-exchange synchronization and price parity arbitrage.</p>
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ==================== 2. PACKAGES & PRICING ==================== -->
+  <section id="pricing" class="py-14 md:py-20 relative z-10">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      
+      <!-- Section Header -->
+      <div class="text-center max-w-3xl mx-auto mb-10 space-y-2">
+        <div class="text-[10px] sm:text-xs font-mono font-bold tracking-widest text-cyan-400 uppercase">
+          PROFESSIONAL | RELIABLE | 24/7 SUPPORT
+        </div>
+        <h2 class="text-2xl sm:text-3xl md:text-4xl font-extrabold text-white">
+          Market Making & <span class="text-gradient-cyan">Liquidity Packages</span>
+        </h2>
+        <p class="text-xs sm:text-sm text-slate-300">
+          Predictable flat-fee models engineered for token growth and sustainable market health.
+        </p>
+      </div>
+
+      <!-- 4 Packages Grid (All items strictly 1 line with whitespace-nowrap) -->
+      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5">
+        
+        <!-- BASIC TIER -->
+        <div class="glass-card rounded-2xl p-5 sm:p-6 border-slate-700/80 flex flex-col justify-between glass-card-hover relative">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider">BASIC TIER</span>
+              <div class="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs">
+                <i class="fa-solid fa-chart-line"></i>
+              </div>
+            </div>
+            
+            <!-- AMOUNT & MONTH ON ONE LINE -->
+            <div class="mb-5 flex items-baseline gap-1.5 pb-2 border-b border-slate-800">
+              <span class="text-3xl font-black text-white tracking-tight">$2,000</span>
+              <span class="text-xs text-slate-400 font-mono">/ month</span>
+            </div>
+
+            <!-- Single-Line Feature Rows -->
+            <div class="space-y-2 text-xs font-mono">
+              <div class="flex items-center justify-between py-1 border-b border-slate-800/60">
+                <span class="text-slate-400 whitespace-nowrap">Client Capital:</span>
+                <span class="text-white font-bold whitespace-nowrap">$20,000+</span>
+              </div>
+              <div class="flex items-center justify-between py-1 border-b border-slate-800/60">
+                <span class="text-slate-400 whitespace-nowrap">Coverage:</span>
+                <span class="text-white font-bold whitespace-nowrap">1 Primary CEX</span>
+              </div>
+              <div class="flex items-center justify-between py-1 border-b border-slate-800/60">
+                <span class="text-slate-400 whitespace-nowrap">Target Spread:</span>
+                <span class="text-emerald-400 font-bold whitespace-nowrap">0.8% – 1.2%</span>
+              </div>
+              <div class="flex items-center justify-between py-1 border-b border-slate-800/60">
+                <span class="text-slate-400 whitespace-nowrap">Order Grid:</span>
+                <span class="text-slate-200 whitespace-nowrap">5 Bids / 5 Asks</span>
+              </div>
+              <div class="flex items-center justify-between py-1 border-b border-slate-800/60">
+                <span class="text-slate-400 whitespace-nowrap">Quoting Mode:</span>
+                <span class="text-slate-200 whitespace-nowrap">Place-First-Cancel</span>
+              </div>
+              <div class="flex items-center justify-between py-1 border-b border-slate-800/60">
+                <span class="text-slate-400 whitespace-nowrap">Ledger Audit:</span>
+                <span class="text-slate-200 whitespace-nowrap">Weekly Summary</span>
+              </div>
+              <div class="flex items-center justify-between py-1">
+                <span class="text-slate-400 whitespace-nowrap">Monitoring:</span>
+                <span class="text-white font-semibold whitespace-nowrap">24/7 Watchdog</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-6 pt-3 border-t border-slate-800">
+            <a href="https://api.whatsapp.com/send?phone=601111658029&text=Hello%20Exbotix%20Tech!%20I%20want%20to%20select%20the%20Basic%20Package%20($2,000/mo)%20for%20our%20token." target="_blank" class="w-full py-2.5 rounded-xl border border-slate-700 hover:border-emerald-400 hover:bg-emerald-500/10 text-white font-bold text-xs tracking-wider uppercase transition flex items-center justify-center gap-1.5 shadow-md">
+              <span>Choose Basic</span> <i class="fa-brands fa-whatsapp text-emerald-400"></i>
+            </a>
+          </div>
+        </div>
+
+        <!-- PROFESSIONAL (MOST POPULAR) -->
+        <div class="glass-card rounded-2xl p-5 sm:p-6 border-2 border-cyan-400 shadow-2xl shadow-cyan-500/20 flex flex-col justify-between glass-card-hover relative md:-translate-y-2 z-20">
+          <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-cyan-400 to-blue-600 text-slate-950 font-bold text-[9px] font-mono uppercase tracking-widest px-3 py-0.5 rounded-full shadow-md whitespace-nowrap">
+            MOST POPULAR
+          </div>
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-mono font-bold text-cyan-300 uppercase tracking-wider">PROFESSIONAL</span>
+              <div class="w-7 h-7 rounded-lg bg-cyan-500/20 text-cyan-300 flex items-center justify-center text-xs">
+                <i class="fa-solid fa-shield-halved"></i>
+              </div>
+            </div>
+            
+            <!-- AMOUNT & MONTH ON ONE LINE -->
+            <div class="mb-5 flex items-baseline gap-1.5 pb-2 border-b border-cyan-900/60">
+              <span class="text-3xl font-black text-white tracking-tight">$4,000</span>
+              <span class="text-xs text-cyan-400 font-mono">/ month</span>
+            </div>
+
+            <!-- Single-Line Feature Rows -->
+            <div class="space-y-2 text-xs font-mono">
+              <div class="flex items-center justify-between py-1 border-b border-cyan-950">
+                <span class="text-slate-300 whitespace-nowrap">Client Capital:</span>
+                <span class="text-white font-bold whitespace-nowrap">$50,000+</span>
+              </div>
+              <div class="flex items-center justify-between py-1 border-b border-cyan-950">
+                <span class="text-slate-300 whitespace-nowrap">Coverage:</span>
+                <span class="text-cyan-300 font-bold whitespace-nowrap">Up to 3 CEXs</span>
+              </div>
+              <div class="flex items-center justify-between py-1 border-b border-cyan-950">
+                <span class="text-slate-300 whitespace-nowrap">Target Spread:</span>
+                <span class="text-emerald-400 font-bold whitespace-nowrap">0.15% – 0.50%</span>
+              </div>
+              <div class="flex items-center justify-between py-1 border-b border-cyan-950">
+                <span class="text-slate-300 whitespace-nowrap">Order Grid:</span>
+                <span class="text-white whitespace-nowrap">8 Bids / 8 Asks</span>
+              </div>
+              <div class="flex items-center justify-between py-1 border-b border-cyan-950">
+                <span class="text-slate-300 whitespace-nowrap">Candle Engine:</span>
+                <span class="text-cyan-300 font-semibold whitespace-nowrap">Autonomous OHLC</span>
+              </div>
+              <div class="flex items-center justify-between py-1 border-b border-cyan-950">
+                <span class="text-slate-300 whitespace-nowrap">Anti-Sniper:</span>
+                <span class="text-emerald-400 font-semibold whitespace-nowrap">STP + Price Floor</span>
+              </div>
+              <div class="flex items-center justify-between py-1 border-b border-cyan-950">
+                <span class="text-slate-300 whitespace-nowrap">Reporting:</span>
+                <span class="text-white whitespace-nowrap">Daily Telegram / WA</span>
+              </div>
+              <div class="flex items-center justify-between py-1">
+                <span class="text-slate-300 whitespace-nowrap">Quant Support:</span>
+                <span class="text-cyan-300 font-bold whitespace-nowrap">&lt; 30 min SLA</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-6 pt-3 border-t border-cyan-900/60">
+            <a href="https://api.whatsapp.com/send?phone=601111658029&text=Hello%20Exbotix%20Tech!%20I%20want%20to%20onboard%20with%20the%20Professional%20Package%20($4,000/mo)." target="_blank" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-cyan-400 to-blue-600 hover:from-cyan-300 hover:to-blue-500 text-slate-950 font-bold text-xs tracking-wider uppercase transition flex items-center justify-center gap-1.5 shadow-lg shadow-cyan-500/25">
+              <span>Choose Professional</span> <i class="fa-brands fa-whatsapp"></i>
+            </a>
+          </div>
+        </div>
+
+        <!-- PREMIUM -->
+        <div class="glass-card rounded-2xl p-5 sm:p-6 border-purple-500/40 flex flex-col justify-between glass-card-hover relative">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-mono font-bold text-purple-300 uppercase tracking-wider">PREMIUM</span>
+              <div class="w-7 h-7 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center text-xs">
+                <i class="fa-solid fa-crown"></i>
+              </div>
+            </div>
+            
+            <!-- AMOUNT & MONTH ON ONE LINE -->
+            <div class="mb-5 flex items-baseline gap-1.5 pb-2 border-b border-slate-800">
+              <span class="text-3xl font-black text-white tracking-tight">$7,500</span>
+              <span class="text-xs text-purple-400 font-mono">/ month</span>
+            </div>
+
+            <!-- Single-Line Feature Rows -->
+            <div class="space-y-2 text-xs font-mono">
+              <div class="flex items-center justify-between py-1 border-b border-slate-800/60">
+                <span class="text-slate-400 whitespace-nowrap">Client Capital:</span>
+                <span class="text-white font-bold whitespace-nowrap">$100,000+</span>
+              </div>
+              <div class="flex items-center justify-between py-1 border-b border-slate-800/60">
+                <span class="text-slate-400 whitespace-nowrap">Coverage:</span>
+                <span class="text-purple-300 font-bold whitespace-nowrap">Multi-CEX (Up to 5)</span>
+              </div>
+              <div class="flex items-center justify-between py-1 border-b border-slate-800/60">
+                <span class="text-slate-400 whitespace-nowrap">Target Spread:</span>
+                <span class="text-emerald-400 font-bold whitespace-nowrap">Ultra-Tight 0.01%</span>
+              </div>
+              <div class="flex items-center justify-between py-1 border-b border-slate-800/60">
+                <span class="text-slate-400 whitespace-nowrap">Cross-Arbitrage:</span>
+                <span class="text-emerald-400 font-semibold whitespace-nowrap">Parity Synced</span>
+              </div>
+              <div class="flex items-center justify-between py-1 border-b border-slate-800/60">
+                <span class="text-slate-400 whitespace-nowrap">Macro BTC:</span>
+                <span class="text-purple-300 font-semibold whitespace-nowrap">Adaptive Multiplier</span>
+              </div>
+              <div class="flex items-center justify-between py-1 border-b border-slate-800/60">
+                <span class="text-slate-400 whitespace-nowrap">Depth Buffer:</span>
+                <span class="text-white font-semibold whitespace-nowrap">$250k+ Liquidity</span>
+              </div>
+              <div class="flex items-center justify-between py-1">
+                <span class="text-slate-400 whitespace-nowrap">Support Desk:</span>
+                <span class="text-white whitespace-nowrap">VIP Direct Line</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-6 pt-3 border-t border-slate-800">
+            <a href="https://api.whatsapp.com/send?phone=601111658029&text=Hello%20Exbotix%20Tech!%20I%20am%20interested%20in%20the%20Premium%20Multi-Exchange%20Tier%20($7,500/mo)." target="_blank" class="w-full py-2.5 rounded-xl border border-purple-500/50 hover:bg-purple-500/20 text-white font-bold text-xs tracking-wider uppercase transition flex items-center justify-center gap-1.5 shadow-md">
+              <span>Choose Premium</span> <i class="fa-brands fa-whatsapp text-purple-300"></i>
+            </a>
+          </div>
+        </div>
+
+        <!-- ENTERPRISE -->
+        <div class="glass-card rounded-2xl p-5 sm:p-6 border-amber-500/40 flex flex-col justify-between glass-card-hover relative">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-mono font-bold text-amber-300 uppercase tracking-wider">ENTERPRISE</span>
+              <div class="w-7 h-7 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center text-xs">
+                <i class="fa-solid fa-building"></i>
+              </div>
+            </div>
+            
+            <!-- AMOUNT & BESPOKE ON ONE LINE -->
+            <div class="mb-5 flex items-baseline gap-1.5 pb-2 border-b border-slate-800">
+              <span class="text-3xl font-black text-white tracking-tight">Custom</span>
+              <span class="text-xs text-amber-400 font-mono">/ Bespoke SLA</span>
+            </div>
+
+            <!-- Single-Line Feature Rows -->
+            <div class="space-y-2 text-xs font-mono">
+              <div class="flex items-center justify-between py-1 border-b border-slate-800/60">
+                <span class="text-slate-400 whitespace-nowrap">Client Capital:</span>
+                <span class="text-white font-bold whitespace-nowrap">$250,000+</span>
+              </div>
+              <div class="flex items-center justify-between py-1 border-b border-slate-800/60">
+                <span class="text-slate-400 whitespace-nowrap">Strategy:</span>
+                <span class="text-amber-300 font-bold whitespace-nowrap">Custom TWAP / VWAP</span>
+              </div>
+              <div class="flex items-center justify-between py-1 border-b border-slate-800/60">
+                <span class="text-slate-400 whitespace-nowrap">Infrastructure:</span>
+                <span class="text-emerald-400 font-semibold whitespace-nowrap">Bare-Metal VPS Node</span>
+              </div>
+              <div class="flex items-center justify-between py-1 border-b border-slate-800/60">
+                <span class="text-slate-400 whitespace-nowrap">Depth Buffer:</span>
+                <span class="text-white font-semibold whitespace-nowrap">$500k+ Large Block</span>
+              </div>
+              <div class="flex items-center justify-between py-1 border-b border-slate-800/60">
+                <span class="text-slate-400 whitespace-nowrap">Assigned Desk:</span>
+                <span class="text-white whitespace-nowrap">24/7 Dedicated Quant</span>
+              </div>
+              <div class="flex items-center justify-between py-1">
+                <span class="text-slate-400 whitespace-nowrap">Co-Location:</span>
+                <span class="text-cyan-300 font-semibold whitespace-nowrap">Sub-Millisecond Direct</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-6 pt-3 border-t border-slate-800">
+            <a href="https://api.whatsapp.com/send?phone=601111658029&text=Hello%20Exbotix%20Tech!%20We%20would%20like%20to%20discuss%20an%20Enterprise%20Custom%20Market%20Making%20agreement." target="_blank" class="w-full py-2.5 rounded-xl border border-amber-500/50 hover:bg-amber-500/20 text-white font-bold text-xs tracking-wider uppercase transition flex items-center justify-center gap-1.5 shadow-md">
+              <span>Contact Enterprise</span> <i class="fa-brands fa-whatsapp text-amber-300"></i>
+            </a>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ==================== 3. PERFORMANCE-BASED OPTION ==================== -->
+  <section id="performance" class="py-14 md:py-20 relative z-10 bg-dark-900/60 border-t border-b border-cyan-900/20">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      
+      <!-- Section Header -->
+      <div class="text-center max-w-3xl mx-auto mb-8 space-y-2">
+        <h2 class="text-2xl sm:text-3xl md:text-4xl font-extrabold text-white">
+          Performance-Based Option — <span class="text-gradient-cyan">Capital-Aligned Model</span>
+        </h2>
+        <p class="text-xs sm:text-sm text-slate-300">
+          Designed for projects seeking lower fixed monthly overheads with incentive alignment.
+        </p>
+        <div class="inline-flex items-center gap-3 px-3 py-1 rounded-full bg-slate-900/80 border border-slate-700 text-xs font-mono text-cyan-300">
+          <span>⚡ Flexible</span> • <span>📈 Scalable</span> • <span>🎯 Performance Aligned</span>
+        </div>
+      </div>
+
+      <!-- Two Highlight Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto mb-8">
+        
+        <!-- Card 1: Monthly Management Fee -->
+        <div class="glass-card rounded-2xl p-6 sm:p-8 border-2 border-emerald-500/70 shadow-2xl shadow-emerald-500/15 glass-card-hover relative">
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-lg">
+                <i class="fa-regular fa-calendar-check"></i>
+              </div>
+              <div>
+                <h3 class="text-xs font-mono uppercase tracking-wider text-slate-300">Monthly Base Retainer</h3>
+                <div class="text-3xl sm:text-4xl font-black text-emerald-400">$2,000</div>
+              </div>
+            </div>
+            <i class="fa-solid fa-chart-simple text-2xl text-emerald-500/40"></i>
+          </div>
+          <p class="text-xs sm:text-sm text-slate-300 leading-relaxed border-t border-slate-800 pt-4">
+            Covers bare-metal VPS node deployment, watchdog automated monitoring, and continuous spread risk management.
+          </p>
+        </div>
+
+        <!-- Card 2: Performance / Trading Fee -->
+        <div class="glass-card rounded-2xl p-6 sm:p-8 border-2 border-purple-500/70 shadow-2xl shadow-purple-500/15 glass-card-hover relative">
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center text-lg">
+                <i class="fa-solid fa-arrow-trend-up"></i>
+              </div>
+              <div>
+                <h3 class="text-xs font-mono uppercase tracking-wider text-slate-300">Performance Revenue Share</h3>
+                <div class="text-3xl sm:text-4xl font-black text-purple-400">10–20%</div>
+              </div>
+            </div>
+            <i class="fa-solid fa-signal text-2xl text-purple-500/40"></i>
+          </div>
+          <div class="text-xs text-purple-300 font-mono mb-2">Calculated strictly on agreed market-making revenue</div>
+          <p class="text-xs sm:text-sm text-slate-300 leading-relaxed border-t border-slate-800 pt-4">
+            Aligned incentives driving sustainable liquidity growth, fully audited through daily transparent fill reconciliations.
+          </p>
+        </div>
+
+      </div>
+
+      <!-- Action Button for Performance Model -->
+      <div class="text-center">
+        <a href="https://api.whatsapp.com/send?phone=601111658029&text=Hello%20Exbotix%20Tech!%20I%20am%20interested%20in%20discussing%20the%20Performance-Based%20Option." target="_blank" class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 text-slate-950 font-bold text-xs tracking-wider uppercase transition shadow-lg shadow-emerald-500/20">
+          <i class="fa-brands fa-whatsapp text-base"></i>
+          <span>Discuss Performance Model on WhatsApp</span>
+        </a>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ==================== RESEARCH & MARKET INSIGHTS / BLOG SECTION ==================== -->
+  <section id="research" class="py-14 md:py-20 relative z-10">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      
+      <!-- Section Header -->
+      <div class="text-center max-w-3xl mx-auto mb-10 space-y-2">
+        <div class="text-[10px] sm:text-xs font-mono font-bold tracking-widest text-cyan-400 uppercase">
+          QUANTITATIVE RESEARCH & MARKET MICROSTRUCTURE
+        </div>
+        <h2 class="text-2xl sm:text-3xl md:text-4xl font-extrabold text-white">
+          Research & Market Insights
+        </h2>
+        <p class="text-xs sm:text-sm text-slate-300">
+          Empirical studies on token spread stabilization, exchange compliance, and whale dump defense.
+        </p>
+      </div>
+
+      <!-- 3 Research Articles Preview -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto mb-8">
+        
+        <!-- Article 1 -->
+        <div class="glass-card rounded-2xl p-6 border-slate-800 glass-card-hover flex flex-col justify-between">
+          <div class="space-y-3">
+            <div class="flex items-center justify-between text-[11px] font-mono text-cyan-400">
+              <span>RESEARCH NOTE</span>
+              <span>OCTOBER 2026</span>
+            </div>
+            <h3 class="text-base font-bold text-white hover:text-cyan-300 transition leading-snug">
+              Solving the Slippage Death Spiral: Dual-Staggered Ladder Quoting
+            </h3>
+            <p class="text-xs text-slate-300 leading-relaxed">
+              When retail traders encounter wide spreads, execution slippage triggers panic selling. We explore how autonomous dual-account order replenishment keeps spreads under 0.10%.
+            </p>
+          </div>
+          <div class="pt-4 border-t border-slate-800 flex items-center justify-between mt-4">
+            <span class="text-[11px] font-mono text-slate-400">By Quant Desk</span>
+            <a href="/blog.html" class="text-xs font-mono font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-1">
+              <span>Read Full Paper</span> <i class="fa-solid fa-arrow-right text-[10px]"></i>
+            </a>
+          </div>
+        </div>
+
+        <!-- Article 2 -->
+        <div class="glass-card rounded-2xl p-6 border-slate-800 glass-card-hover flex flex-col justify-between">
+          <div class="space-y-3">
+            <div class="flex items-center justify-between text-[11px] font-mono text-emerald-400">
+              <span>COMPLIANCE NOTE</span>
+              <span>SEPTEMBER 2026</span>
+            </div>
+            <h3 class="text-base font-bold text-white hover:text-emerald-300 transition leading-snug">
+              Preventing Wash Trading Penalties: Architectural STP Engine
+            </h3>
+            <p class="text-xs text-slate-300 leading-relaxed">
+              Tier-1 exchanges monitor and penalize self-matching. Discover how our centralized STP registry coordinates multi-account quoting across isolated APIs with randomized micro-delays.
+            </p>
+          </div>
+          <div class="pt-4 border-t border-slate-800 flex items-center justify-between mt-4">
+            <span class="text-[11px] font-mono text-slate-400">By Compliance Lead</span>
+            <a href="/blog.html" class="text-xs font-mono font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-1">
+              <span>Read Full Paper</span> <i class="fa-solid fa-arrow-right text-[10px]"></i>
+            </a>
+          </div>
+        </div>
+
+        <!-- Article 3 -->
+        <div class="glass-card rounded-2xl p-6 border-slate-800 glass-card-hover flex flex-col justify-between">
+          <div class="space-y-3">
+            <div class="flex items-center justify-between text-[11px] font-mono text-purple-400">
+              <span>RISK WHITE PAPER</span>
+              <span>AUGUST 2026</span>
+            </div>
+            <h3 class="text-base font-bold text-white hover:text-purple-300 transition leading-snug">
+              Whale Dump Absorption: Cumulative Depth Bands & Floor Protection
+            </h3>
+            <p class="text-xs text-slate-300 leading-relaxed">
+              Unmanaged whale exits cause 30%+ market dumps. Learn how thick cumulative depth bands and automated circuit breakers absorb sudden sell-offs while protecting client capital.
+            </p>
+          </div>
+          <div class="pt-4 border-t border-slate-800 flex items-center justify-between mt-4">
+            <span class="text-[11px] font-mono text-slate-400">By Senior Risk Officer</span>
+            <a href="/blog.html" class="text-xs font-mono font-bold text-purple-400 hover:text-purple-300 flex items-center gap-1">
+              <span>Read Full Paper</span> <i class="fa-solid fa-arrow-right text-[10px]"></i>
+            </a>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="text-center">
+        <a href="/blog.html" class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-cyan-500/40 text-cyan-300 text-xs font-mono font-bold tracking-wider uppercase transition">
+          <i class="fa-solid fa-book-open"></i>
+          <span>View All Research Publications</span>
+        </a>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ==================== INSTITUTIONAL FAQ SECTION ==================== -->
+  <section id="faq" class="py-14 md:py-20 relative z-10 bg-dark-900/60 border-t border-b border-cyan-900/20">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      
+      <!-- Section Header -->
+      <div class="text-center max-w-3xl mx-auto mb-10 space-y-2">
+        <div class="text-[10px] sm:text-xs font-mono font-bold tracking-widest text-cyan-400 uppercase">
+          OPERATIONAL TRANSPARENCY
+        </div>
+        <h2 class="text-2xl sm:text-3xl md:text-4xl font-extrabold text-white">
+          Frequently Asked Questions
+        </h2>
+        <p class="text-xs sm:text-sm text-slate-300">
+          Direct answers regarding custody, exchange compliance, and trading execution.
+        </p>
+      </div>
+
+      <!-- FAQ Accordions -->
+      <div class="space-y-3.5">
+        
+        <!-- FAQ 1 -->
+        <div class="glass-card rounded-2xl border-slate-800 p-5 cursor-pointer" onclick="toggleFaq(1)">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm sm:text-base font-bold text-white flex items-center gap-2.5">
+              <span class="w-6 h-6 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-xs">Q1</span>
+              Do you take custody of our project's treasury or private keys?
+            </h3>
+            <i class="fa-solid fa-chevron-down text-slate-400 transition-transform duration-300 text-xs" id="faqIcon-1"></i>
+          </div>
+          <div class="mt-3 text-xs sm:text-sm text-slate-300 leading-relaxed border-t border-slate-800 pt-3 hidden" id="faqBody-1">
+            <strong>Strictly Non-Custodial:</strong> Exbotix Tech operates solely via exchange API keys with <strong>Trade-Only permissions</strong>. Withdrawal permissions are explicitly forbidden and disabled at the exchange API key level. Your funds, tokens, and USDT remain 100% inside your controlled exchange accounts at all times.
+          </div>
+        </div>
+
+        <!-- FAQ 2 -->
+        <div class="glass-card rounded-2xl border-slate-800 p-5 cursor-pointer" onclick="toggleFaq(2)">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm sm:text-base font-bold text-white flex items-center gap-2.5">
+              <span class="w-6 h-6 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs">Q2</span>
+              How does Exbotix Tech prevent exchange wash-trading or self-trade penalties?
+            </h3>
+            <i class="fa-solid fa-chevron-down text-slate-400 transition-transform duration-300 text-xs" id="faqIcon-2"></i>
+          </div>
+          <div class="mt-3 text-xs sm:text-sm text-slate-300 leading-relaxed border-t border-slate-800 pt-3 hidden" id="faqBody-2">
+            Our multi-account quoting architecture utilizes a proprietary <strong>Self-Trade Prevention (STP) Registry</strong>. Order IDs, price steps, and execution intervals are strictly synchronized between Account A and Account B so internal orders never match or cross against each other, eliminating wash-trading flags on LBank, Bybit, KuCoin, or Bitget.
+          </div>
+        </div>
+
+        <!-- FAQ 3 -->
+        <div class="glass-card rounded-2xl border-slate-800 p-5 cursor-pointer" onclick="toggleFaq(3)">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm sm:text-base font-bold text-white flex items-center gap-2.5">
+              <span class="w-6 h-6 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center text-xs">Q3</span>
+              What is the deployment timeline once we approve a package?
+            </h3>
+            <i class="fa-solid fa-chevron-down text-slate-400 transition-transform duration-300 text-xs" id="faqIcon-3"></i>
+          </div>
+          <div class="mt-3 text-xs sm:text-sm text-slate-300 leading-relaxed border-t border-slate-800 pt-3 hidden" id="faqBody-3">
+            Standard engine initialization takes <strong>24 to 48 hours</strong>. Once API keys are verified and balance thresholds are confirmed, our quant engineers configure the price corridor, spread targets, and automated watchdog alerts before initiating live quoting.
+          </div>
+        </div>
+
+        <!-- FAQ 4 -->
+        <div class="glass-card rounded-2xl border-slate-800 p-5 cursor-pointer" onclick="toggleFaq(4)">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm sm:text-base font-bold text-white flex items-center gap-2.5">
+              <span class="w-6 h-6 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center text-xs">Q4</span>
+              How is revenue calculated in the Performance-Based Option?
+            </h3>
+            <i class="fa-solid fa-chevron-down text-slate-400 transition-transform duration-300 text-xs" id="faqIcon-4"></i>
+          </div>
+          <div class="mt-3 text-xs sm:text-sm text-slate-300 leading-relaxed border-t border-slate-800 pt-3 hidden" id="faqBody-4">
+            Under the performance model, the low $2,000 monthly fee covers cloud VPS co-location and risk monitoring. The 10–20% performance share is calculated strictly on verifiable market-making revenue (such as bid/ask spread capture and exchange maker fee rebates), validated via transparent daily ledger audits with zero hidden markups.
+          </div>
+        </div>
+
+        <!-- FAQ 5 -->
+        <div class="glass-card rounded-2xl border-slate-800 p-5 cursor-pointer" onclick="toggleFaq(5)">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm sm:text-base font-bold text-white flex items-center gap-2.5">
+              <span class="w-6 h-6 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center text-xs">Q5</span>
+              How does the bot defend against macro crypto market dumps?
+            </h3>
+            <i class="fa-solid fa-chevron-down text-slate-400 transition-transform duration-300 text-xs" id="faqIcon-5"></i>
+          </div>
+          <div class="mt-3 text-xs sm:text-sm text-slate-300 leading-relaxed border-t border-slate-800 pt-3 hidden" id="faqBody-5">
+            Our <strong>Macro BTC Regime Correlation Engine</strong> tracks live Bitcoin volatility on Binance. During high-velocity macro sell-offs, the engine defensively widens bid ladders and activates strict Price Floor circuit breakers to protect project capital from being drained by algorithmic flash crashes.
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ==================== 4. CONTACT US & STRATEGY INQUIRY ==================== -->
+  <section id="contact" class="py-14 md:py-24 relative z-10 bg-dark-950 border-t border-cyan-900/30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      
+      <!-- Top Bar -->
+      <div class="text-center mb-2.5">
+        <div class="text-[10px] sm:text-xs font-mono font-bold tracking-widest text-cyan-400 uppercase">
+          MALAYSIA & GLOBAL WEB3 DESK
+        </div>
+      </div>
+
+      <!-- Main Headline -->
+      <div class="text-center max-w-3xl mx-auto mb-10 space-y-2">
+        <h2 class="text-2xl sm:text-4xl md:text-5xl font-black text-white tracking-tight">
+          Let's Build Stronger <span class="text-gradient-cyan">Markets Together</span>
+        </h2>
+        <p class="text-xs sm:text-sm text-slate-300">
+          Connect directly with Exbotix Tech quants for a complimentary token liquidity audit.
+        </p>
+      </div>
+
+      <!-- Professional Booking Consultation Hub -->
+      <div class="max-w-3xl mx-auto glass-card rounded-3xl p-6 sm:p-10 border border-cyan-500/40 shadow-2xl relative overflow-hidden">
+        
+        <div class="text-center max-w-xl mx-auto mb-8 space-y-2">
+          <span class="px-3 py-1 rounded-full bg-emerald-950/80 text-emerald-400 border border-emerald-500/40 text-xs font-mono font-bold">
+            ● KUALA LUMPUR QUANT DESK READY
+          </span>
+          <h3 class="text-xl sm:text-2xl font-extrabold text-white">
+            Request Algorithmic Onboarding
+          </h3>
+          <p class="text-xs text-slate-300 leading-relaxed">
+            Fill in your token details below. Your inquiry is directly routed to our lead market makers for review within 60 minutes.
+          </p>
+          
+          <!-- Direct Desk Contacts -->
+          <div class="flex flex-wrap items-center justify-center gap-2.5 pt-2 text-xs font-mono">
+            <a href="https://api.whatsapp.com/send?phone=601111658029&text=Hello%20Exbotix%20Tech%20Malaysia!%20I%20would%20like%20to%20discuss%20Market%20Making%20services." target="_blank" class="px-3 py-1.5 rounded-lg bg-emerald-950/70 border border-emerald-500/40 text-emerald-300 hover:text-white flex items-center gap-1.5 transition">
+              <i class="fa-brands fa-whatsapp text-emerald-400"></i> <span>Direct WhatsApp</span>
+            </a>
+            <a href="mailto:zeeshan@exbotix.com?subject=Exbotix%20Tech%20MM%20Inquiry" class="px-3 py-1.5 rounded-lg bg-slate-900/70 border border-slate-700 text-slate-300 hover:text-white flex items-center gap-1.5 transition">
+              <i class="fa-regular fa-envelope text-cyan-400"></i> <span>zeeshan@exbotix.com</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- Embedded Booking Form -->
+        <form id="directBookingForm" onsubmit="handleDirectBooking(event)" class="space-y-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            
+            <div>
+              <label class="block text-xs font-mono text-slate-300 mb-1.5">Your Name & Title</label>
+              <input type="text" id="bmName" required placeholder="John Doe (Founding Team)" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700 text-white text-xs font-mono focus:outline-none focus:border-cyan-400 transition">
+            </div>
+
+            <div>
+              <label class="block text-xs font-mono text-slate-300 mb-1.5">Token Symbol / Project Name</label>
+              <input type="text" id="bmToken" required placeholder="e.g. EXBT" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700 text-white text-xs font-mono focus:outline-none focus:border-cyan-400 transition">
+            </div>
+
+            <div>
+              <label class="block text-xs font-mono text-slate-300 mb-1.5">Target Exchange(s)</label>
+              <input type="text" id="bmExchange" required placeholder="e.g. LBank, KuCoin, Bybit" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700 text-white text-xs font-mono focus:outline-none focus:border-cyan-400 transition">
+            </div>
+
+            <div>
+              <label class="block text-xs font-mono text-slate-300 mb-1.5">Preferred Package</label>
+              <select id="bmTier" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700 text-white text-xs font-mono focus:outline-none focus:border-cyan-400 transition">
+                <option value="Professional ($4,000/mo) - Recommended">Professional ($4,000/mo) — Recommended</option>
+                <option value="Basic ($2,000/mo)">Basic ($2,000/mo)</option>
+                <option value="Premium ($7,500/mo)">Premium ($7,500/mo)</option>
+                <option value="Enterprise Bespoke SLA">Enterprise Bespoke SLA</option>
+                <option value="Performance-Based Model ($2,000 + Rev Share)">Performance-Based Model ($2,000 + Rev Share)</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-mono text-slate-300 mb-1.5">Telegram Handle / WhatsApp</label>
+              <input type="text" id="bmWhatsapp" required placeholder="@YourTelegram or WhatsApp" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700 text-white text-xs font-mono focus:outline-none focus:border-cyan-400 transition">
+            </div>
+
+            <div>
+              <label class="block text-xs font-mono text-slate-300 mb-1.5">Email Address</label>
+              <input type="email" id="bmEmail" required placeholder="team@yourtoken.io" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700 text-white text-xs font-mono focus:outline-none focus:border-cyan-400 transition">
+            </div>
+
+          </div>
+
+          <div>
+            <label class="block text-xs font-mono text-slate-300 mb-1.5">Market Making Goals / Specific Requirements</label>
+            <textarea id="bmNotes" rows="3" placeholder="Describe your target spread corridor, exchange listing dates, or volume requirements..." class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700 text-white text-xs font-mono focus:outline-none focus:border-cyan-400 transition"></textarea>
+          </div>
+
+          <!-- Action Submission Button -->
+          <div class="pt-3 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <button type="submit" class="w-full sm:w-auto px-8 py-3.5 rounded-xl font-bold text-xs tracking-wider uppercase bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 shadow-xl shadow-emerald-500/25 flex items-center justify-center gap-2 transition duration-300">
+              <i class="fa-brands fa-whatsapp text-lg text-slate-950"></i>
+              <span>Send Inquiry on WhatsApp</span>
+            </button>
+            <button type="button" onclick="sendViaDirectEmail()" class="w-full sm:w-auto px-6 py-3.5 rounded-xl font-bold text-xs tracking-wider uppercase bg-slate-900 hover:bg-slate-800 text-cyan-300 border border-slate-700 hover:border-cyan-400 transition flex items-center justify-center gap-2">
+              <i class="fa-regular fa-envelope"></i>
+              <span>Send via Email</span>
+            </button>
+          </div>
+
+          <!-- Feedback Alert -->
+          <div id="bookingSuccessBox" class="hidden mt-4 p-4 rounded-xl bg-emerald-950/80 border border-emerald-500 text-center font-mono text-xs text-emerald-300">
+            <i class="fa-solid fa-circle-check text-base text-emerald-400 mb-1"></i>
+            <div>Inquiry recorded! Redirecting to WhatsApp Desk...</div>
+          </div>
+        </form>
+
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ==================== POPUP BOOKING MODAL ==================== -->
+  <div id="bookingModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-dark-950/80 backdrop-blur-md">
+    <div class="glass-card rounded-3xl p-6 sm:p-8 max-w-lg w-full border border-cyan-500/50 shadow-2xl relative">
+      <button onclick="closeBookingModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white text-lg transition">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+
+      <div class="mb-5">
+        <span class="px-2.5 py-0.5 rounded-full bg-cyan-950 text-cyan-300 border border-cyan-500/40 text-[10px] font-mono uppercase font-bold" id="modalTierTitle">
+          MARKET MAKING STRATEGY CALL
+        </span>
+        <h3 class="text-xl font-bold text-white mt-1.5">Consult with Exbotix Quants</h3>
+        <p class="text-xs text-slate-300">Direct low-latency line to our Kuala Lumpur trading desk.</p>
+      </div>
+
+      <form onsubmit="handlePopupBooking(event)" class="space-y-3.5">
+        <div>
+          <label class="block text-xs font-mono text-slate-300 mb-1">Your Name</label>
+          <input type="text" id="popName" required placeholder="John Doe" class="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-white text-xs font-mono focus:outline-none focus:border-cyan-400">
+        </div>
+
+        <div>
+          <label class="block text-xs font-mono text-slate-300 mb-1">Token Symbol & Exchange</label>
+          <div class="grid grid-cols-2 gap-2">
+            <input type="text" id="popToken" required placeholder="EXBT" class="px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-white text-xs font-mono focus:outline-none focus:border-cyan-400">
+            <input type="text" id="popExchange" required placeholder="LBank / Bybit" class="px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-white text-xs font-mono focus:outline-none focus:border-cyan-400">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-mono text-slate-300 mb-1">Telegram or WhatsApp</label>
+          <input type="text" id="popContact" required placeholder="@TelegramUser or +Phone" class="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-white text-xs font-mono focus:outline-none focus:border-cyan-400">
+        </div>
+
+        <div>
+          <label class="block text-xs font-mono text-slate-300 mb-1">Email Address</label>
+          <input type="email" id="popEmail" required placeholder="team@token.io" class="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-white text-xs font-mono focus:outline-none focus:border-cyan-400">
+        </div>
+
+        <div class="pt-2 flex flex-col gap-2">
+          <button type="submit" class="w-full py-2.5 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-xs tracking-wider uppercase transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25">
+            <i class="fa-brands fa-whatsapp text-base"></i>
+            <span>Chat on WhatsApp</span>
+          </button>
+          <button type="button" onclick="sendViaModalEmail()" class="w-full py-2 rounded-lg border border-slate-700 hover:border-cyan-400 text-cyan-300 font-bold text-xs tracking-wider uppercase transition flex items-center justify-center gap-2">
+            <i class="fa-regular fa-envelope"></i>
+            <span>Send via Email</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== FOOTER ==================== -->
+  <footer class="bg-dark-950 border-t border-slate-900 py-8 relative z-20 text-xs font-mono text-slate-500">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-2">
+        <img src="assets/logo.svg" alt="Exbotix Tech" class="h-6 w-auto">
+        <span class="text-slate-400 font-bold">Exbotix Tech Sdn Bhd</span>
+        <span>• Kuala Lumpur, Malaysia</span>
+      </div>
+      <div>
+        © 2026 Exbotix Tech. Quantitative Liquidity Desk.
+      </div>
+      <div class="flex items-center gap-4">
+        <a href="#services" class="hover:text-cyan-400 transition">Services</a>
+        <a href="#pricing" class="hover:text-cyan-400 transition">Packages</a>
+        <a href="#performance" class="hover:text-cyan-400 transition">Performance</a>
+        <a href="/blog.html" class="hover:text-cyan-400 transition">Research & News</a>
+        <a href="#faq" class="hover:text-cyan-400 transition">FAQ</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ==================== GOOGLE GEMINI FLUID FLOW ANIMATION SCRIPT ==================== -->
+  <script>
+    (function initGeminiFlow() {
+      const canvas = document.getElementById('geminiFlowCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      let w, h;
+      let mouseX = 0, mouseY = 0;
+      let targetMouseX = 0, targetMouseY = 0;
+
+      function resize() {
+        w = canvas.width = window.innerWidth;
+        h = canvas.height = window.innerHeight;
+      }
+      window.addEventListener('resize', resize);
+      resize();
+
+      window.addEventListener('mousemove', (e) => {
+        targetMouseX = e.clientX;
+        targetMouseY = e.clientY;
+      });
+
+      // Flow ribbon wave definitions (Gemini multi-chromatic glowing filaments)
+      const ribbons = [
+        { color: 'rgba(0, 242, 254, 0.45)', speed: 0.0014, amp: 85, freq: 0.0018, yOffset: 0.30 },
+        { color: 'rgba(59, 130, 246, 0.40)', speed: 0.0018, amp: 105, freq: 0.0022, yOffset: 0.48 },
+        { color: 'rgba(0, 230, 118, 0.35)', speed: 0.0012, amp: 90, freq: 0.0015, yOffset: 0.62 },
+        { color: 'rgba(139, 92, 246, 0.30)', speed: 0.0020, amp: 115, freq: 0.0020, yOffset: 0.40 },
+        { color: 'rgba(245, 158, 11, 0.25)', speed: 0.0015, amp: 75, freq: 0.0025, yOffset: 0.55 }
+      ];
+
+      // Dynamic floating quantum particles
+      const particles = [];
+      const particleCount = 45;
+      for (let i = 0; i < particleCount; i++) {
+        particles.push({
+          x: Math.random() * window.innerWidth,
+          y: Math.random() * window.innerHeight,
+          r: Math.random() * 2.2 + 0.8,
+          vx: (Math.random() - 0.5) * 0.4,
+          vy: (Math.random() - 0.5) * 0.4,
+          color: ['#00f2fe', '#00e676', '#38bdf8', '#8b5cf6', '#fbbf24'][Math.floor(Math.random() * 5)]
+        });
+      }
+
+      let time = 0;
+      function animate() {
+        time += 1;
+        ctx.clearRect(0, 0, w, h);
+
+        // Smooth mouse easing
+        mouseX += (targetMouseX - mouseX) * 0.06;
+        mouseY += (targetMouseY - mouseY) * 0.06;
+
+        ctx.globalCompositeOperation = 'lighter';
+
+        // Draw Gemini Flow Ribbons
+        ribbons.forEach((ribbon, idx) => {
+          ctx.beginPath();
+          ctx.lineWidth = 3.5;
+          ctx.strokeStyle = ribbon.color;
+
+          const baseCenterY = h * ribbon.yOffset;
+          ctx.moveTo(0, baseCenterY);
+
+          const step = 20;
+          for (let x = 0; x <= w + step; x += step) {
+            const distToMouse = Math.hypot(x - mouseX, baseCenterY - mouseY);
+            const mouseForce = Math.max(0, (300 - distToMouse) / 300) * 45;
+
+            const wave1 = Math.sin(x * ribbon.freq + time * ribbon.speed + idx) * ribbon.amp;
+            const wave2 = Math.cos(x * (ribbon.freq * 0.7) - time * (ribbon.speed * 0.8)) * (ribbon.amp * 0.5);
+            const y = baseCenterY + wave1 + wave2 - mouseForce;
+
+            ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+        });
+
+        // Draw Flow Particles
+        particles.forEach(p => {
+          p.x += p.vx;
+          p.y += p.vy;
+
+          if (p.x < 0) p.x = w;
+          if (p.x > w) p.x = 0;
+          if (p.y < 0) p.y = h;
+          if (p.y > h) p.y = 0;
+
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+          ctx.fillStyle = p.color;
+          ctx.shadowBlur = 10;
+          ctx.shadowColor = p.color;
+          ctx.fill();
+        });
+        ctx.shadowBlur = 0;
+        ctx.globalCompositeOperation = 'source-over';
+
+        requestAnimationFrame(animate);
+      }
+      animate();
+    })();
+
+    // Exact desk contact
+    const DESK_WHATSAPP = "601111658029";
+    const DESK_EMAIL = "zeeshan@exbotix.com";
+
+    function openBookingModal(tierTitle) {
+      document.getElementById('modalTierTitle').innerText = tierTitle || 'STRATEGY CONSULTATION';
+      document.getElementById('bookingModal').classList.remove('hidden');
+    }
+
+    function closeBookingModal() {
+      document.getElementById('bookingModal').classList.add('hidden');
+    }
+
+    // Mobile Hamburger Menu Drawer Toggle
+    function toggleMobileNav() {
+      const menu = document.getElementById('mobileMenu');
+      const icon = document.getElementById('mobileNavIcon');
+      if (!menu) return;
+      menu.classList.toggle('hidden');
+      if (icon) {
+        if (menu.classList.contains('hidden')) {
+          icon.classList.remove('fa-xmark');
+          icon.classList.add('fa-bars');
+        } else {
+          icon.classList.remove('fa-bars');
+          icon.classList.add('fa-xmark');
+        }
+      }
+    }
+
+    // FAQ Accordion Toggle
+    function toggleFaq(id) {
+      const body = document.getElementById(`faqBody-${id}`);
+      const icon = document.getElementById(`faqIcon-${id}`);
+      if (!body) return;
+      const isHidden = body.classList.contains('hidden');
+      if (isHidden) {
+        body.classList.remove('hidden');
+        if (icon) icon.classList.add('rotate-180');
+      } else {
+        body.classList.add('hidden');
+        if (icon) icon.classList.remove('rotate-180');
+      }
+    }
+
+    // Direct Embedded Booking Handler
+    async function handleDirectBooking(e) {
+      e.preventDefault();
+      const payload = {
+        name: document.getElementById('bmName').value,
+        token: document.getElementById('bmToken').value,
+        exchange: document.getElementById('bmExchange').value,
+        tier: document.getElementById('bmTier').value,
+        contact: document.getElementById('bmWhatsapp').value,
+        email: document.getElementById('bmEmail').value,
+        notes: document.getElementById('bmNotes').value
+      };
+
+      try {
+        await fetch('/api/book_call', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      } catch (err) {}
+
+      const sBox = document.getElementById('bookingSuccessBox');
+      if (sBox) sBox.classList.remove('hidden');
+
+      const waText = `Hello Exbotix Tech Malaysia Desk!%0A%0AI would like to inquire about Market Making services:%0A• Token: ${encodeURIComponent(payload.token)}%0A• Contact: ${encodeURIComponent(payload.name)}%0A• Target Exchange: ${encodeURIComponent(payload.exchange)}%0A• Selected Tier: ${encodeURIComponent(payload.tier)}%0A• Telegram/WA: ${encodeURIComponent(payload.contact)}%0A• Email: ${encodeURIComponent(payload.email)}%0A• Goals: ${encodeURIComponent(payload.notes || 'N/A')}`;
+
+      // Open WhatsApp directly to user's number
+      window.open(`https://api.whatsapp.com/send?phone=${DESK_WHATSAPP}&text=${waText}`, '_blank');
+    }
+
+    function sendViaDirectEmail() {
+      const name = document.getElementById('bmName').value || 'Founder';
+      const token = document.getElementById('bmToken').value || 'Token';
+      const exchange = document.getElementById('bmExchange').value || 'CEX';
+      const tier = document.getElementById('bmTier').value || 'Professional';
+      const contact = document.getElementById('bmWhatsapp').value || 'N/A';
+      const notes = document.getElementById('bmNotes').value || 'N/A';
+
+      const mailBody = `Name: ${name}\nToken: ${token}\nExchange: ${exchange}\nTier: ${tier}\nTelegram/Phone: ${contact}\nNotes: ${notes}`;
+      const mailUrl = `mailto:${DESK_EMAIL}?subject=${encodeURIComponent("Exbotix Tech MM Strategy Consultation - " + token)}&body=${encodeURIComponent(mailBody)}`;
+      window.location.href = mailUrl;
+    }
+
+    // Popup Modal Booking Handler
+    async function handlePopupBooking(e) {
+      e.preventDefault();
+      const payload = {
+        name: document.getElementById('popName').value,
+        token: document.getElementById('popToken').value,
+        exchange: document.getElementById('popExchange').value,
+        tier: document.getElementById('modalTierTitle').innerText,
+        contact: document.getElementById('popContact').value,
+        email: document.getElementById('popEmail').value,
+      };
+
+      try {
+        await fetch('/api/book_call', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      } catch (err) {}
+
+      const waText = `Hello Exbotix Tech Desk!%0A%0AI would like to book a VIP Strategy Call:%0A• Token: ${encodeURIComponent(payload.token)}%0A• Client: ${encodeURIComponent(payload.name)}%0A• Exchange: ${encodeURIComponent(payload.exchange)}%0A• Package: ${encodeURIComponent(payload.tier)}%0A• Telegram/WA: ${encodeURIComponent(payload.contact)}%0A• Email: ${encodeURIComponent(payload.email)}`;
+
+      window.open(`https://api.whatsapp.com/send?phone=${DESK_WHATSAPP}&text=${waText}`, '_blank');
+      closeBookingModal();
+    }
+
+    function sendViaModalEmail() {
+      const name = document.getElementById('popName').value || 'Client';
+      const token = document.getElementById('popToken').value || 'Token';
+      const tier = document.getElementById('modalTierTitle').innerText;
+      const contact = document.getElementById('popContact').value || '';
+      const mailUrl = `mailto:${DESK_EMAIL}?subject=${encodeURIComponent("Strategy Consultation Request: " + token)}&body=${encodeURIComponent("Name: " + name + "\nToken: " + token + "\nPackage: " + tier + "\nContact: " + contact)}`;
+      window.location.href = mailUrl;
+      closeBookingModal();
+    }
+  </script>
+</body>
+</html>

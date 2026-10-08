@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 100" width="100%" height="100%">
+  <defs>
+    <!-- Gradients -->
+    <linearGradient id="exbGradient1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00f2fe" />
+      <stop offset="50%" stop-color="#00c853" />
+      <stop offset="100%" stop-color="#3b82f6" />
+    </linearGradient>
+    <linearGradient id="exbGradient2" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#00e676" />
+    </linearGradient>
+    <linearGradient id="glowG" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00f2fe" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#10b981" stop-opacity="0.2"/>
+    </linearGradient>
+    <filter id="neonGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="4" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Isometric Hex-Cube Quantum Logo Icon -->
+  <g transform="translate(15, 12)">
+    <!-- Outer Glow Polygon -->
+    <polygon points="38,4 70,22 70,58 38,76 6,58 6,22" fill="none" stroke="url(#exbGradient1)" stroke-width="2.5" opacity="0.4" filter="url(#neonGlow)" />
+    
+    <!-- Top Facet -->
+    <polygon points="38,10 65,25 38,40 11,25" fill="url(#exbGradient2)" opacity="0.85" />
+    
+    <!-- Left Facet -->
+    <polygon points="11,25 38,40 38,70 11,55" fill="#071933" stroke="url(#exbGradient1)" stroke-width="1.5" />
+    
+    <!-- Right Facet -->
+    <polygon points="38,40 65,25 65,55 38,70" fill="#092742" stroke="url(#exbGradient2)" stroke-width="1.5" />
+
+    <!-- Center Pulse Quantum Orb -->
+    <circle cx="38" cy="40" r="5" fill="#00f2fe" filter="url(#neonGlow)">
+      <animate attributeName="r" values="4;6.5;4" dur="2s" repeatCount="indefinite" />
+      <animate attributeName="opacity" values="0.7;1;0.7" dur="2s" repeatCount="indefinite" />
+    </circle>
+
+    <!-- Circuit Laser Lines -->
+    <line x1="38" y1="10" x2="38" y2="40" stroke="#ffffff" stroke-width="1.5" stroke-dasharray="2 2" opacity="0.7"/>
+    <line x1="11" y1="25" x2="65" y2="55" stroke="#00e676" stroke-width="1" opacity="0.5"/>
+  </g>
+
+  <!-- Typography: EXBOTIX TECH -->
+  <g transform="translate(100, 48)">
+    <!-- Main EXBOTIX text -->
+    <text x="0" y="0" font-family="'Plus Jakarta Sans', sans-serif" font-weight="900" font-size="34" fill="#ffffff" letter-spacing="1.5">
+      EXBOTIX
+    </text>
+    
+    <!-- TECH in glowing cyan gradient -->
+    <text x="175" y="0" font-family="'Plus Jakarta Sans', sans-serif" font-weight="900" font-size="34" fill="url(#exbGradient2)" letter-spacing="2" filter="url(#neonGlow)">
+      TECH
+    </text>
+
+    <!-- Subtitle: MALAYSIA QUANT DESK -->
+    <text x="2" y="24" font-family="'JetBrains Mono', monospace" font-weight="600" font-size="10.5" fill="#38bdf8" letter-spacing="3.5" opacity="0.9">
+      MALAYSIA INSTITUTIONAL LIQUIDITY
+    </text>
+
+    <!-- Small decorative dot -->
+    <circle cx="288" cy="21" r="2.5" fill="#00e676" />
+  </g>
+</svg>
+
