@@ -1,0 +1,35 @@
+# Security - NEVER commit active API keys or credentials
+config.py
+.secret.key
+users.db
+.env
+*.env
+*.pem
+*.key
+
+# Runtime logs
+logs/
+*.log
+
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+.python/
+.uv-cache/
+
+# Temporary data files / report images
+*.png
+*.jpg
+*.jpeg
+data/regime_state.json
+
+# Backups
+*.bak
+backup_pre_upgrade/

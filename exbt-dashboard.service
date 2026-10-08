@@ -1,0 +1,16 @@
+[Unit]
+Description=EXBT/USDT Market Maker Web Dashboard & Daily Reports
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/exbt_mm_bot
+ExecStart=/usr/bin/python3 /root/exbt_mm_bot/dashboard_app.py
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

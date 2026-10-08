@@ -1,0 +1,16 @@
+[Unit]
+Description=EXBT/USDT LBank Market Maker Bot
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/exbt_mm_bot
+ExecStart=/usr/bin/python3 /root/exbt_mm_bot/main.py
+Restart=always
+RestartSec=30
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
