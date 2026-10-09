@@ -45,15 +45,15 @@
     <line x1="11" y1="25" x2="65" y2="55" stroke="#00e676" stroke-width="1" opacity="0.5"/>
   </g>
 
-  <!-- Typography: EXBOTIX TECH -->
+  <!-- Typography: BITFILX TECH -->
   <g transform="translate(100, 48)">
-    <!-- Main EXBOTIX text -->
+    <!-- Main BITFILX text -->
     <text x="0" y="0" font-family="'Plus Jakarta Sans', sans-serif" font-weight="900" font-size="34" fill="#ffffff" letter-spacing="1.5">
-      EXBOTIX
+      BITFILX
     </text>
     
     <!-- TECH in glowing cyan gradient -->
-    <text x="175" y="0" font-family="'Plus Jakarta Sans', sans-serif" font-weight="900" font-size="34" fill="url(#exbGradient2)" letter-spacing="2" filter="url(#neonGlow)">
+    <text x="156" y="0" font-family="'Plus Jakarta Sans', sans-serif" font-weight="900" font-size="34" fill="url(#exbGradient2)" letter-spacing="2" filter="url(#neonGlow)">
       TECH
     </text>
 
@@ -66,4 +66,3 @@
     <circle cx="288" cy="21" r="2.5" fill="#00e676" />
   </g>
 </svg>
-

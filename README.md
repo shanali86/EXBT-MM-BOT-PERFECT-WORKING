@@ -1,6 +1,6 @@
-# EXBT/USDT Institutional Market Maker Bot (v2.0)
+# Bitfilx Tech — Institutional Market Maker Bot & Liquidity Suite (v2.0)
 
-High-performance, multi-account Market Maker, Dynamic Quoting Engine, Candle Painter, and Risk Defense Suite designed specifically for LBank exchange.
+High-performance, multi-account Market Maker, Dynamic Quoting Engine, Candle Painter, and Risk Defense Suite engineered by **Bitfilx Tech** (Malaysian Web3 Quantitative Desk).
 
 ---
 
@@ -9,7 +9,7 @@ High-performance, multi-account Market Maker, Dynamic Quoting Engine, Candle Pai
 1. **Dual-Account Zero-Gap Quoting Engine (`market_maker.py`, `quoting_engine.py`)**
    - Dual staggered ladder order placement (Account A & Account B)
    - "Place-First, Cancel-Later" zero-gap liquidity replacement
-   - Organic randomized order sizing (e.g. 74.32 to 118.91 EXBT) preventing robotic patterns
+   - Organic randomized order sizing (e.g. 74.32 to 118.91 BTFX) preventing robotic patterns
    - Dynamic inventory skewing with self-trade prevention (STP)
 
 2. **Autonomous Candle Painter (`candle_bot.py`)**
@@ -18,7 +18,7 @@ High-performance, multi-account Market Maker, Dynamic Quoting Engine, Candle Pai
    - Micro-notional trades between coordinated accounts with zero capital loss
 
 3. **Macro BTC Regime Engine (`reference_engine.py`)**
-   - Live Binance BTC/USDT tracker adapting EXBT spreads dynamically
+   - Live Binance BTC/USDT tracker adapting BTFX spreads dynamically
    - Spreads widen defensively during BTC dump regimes and tighten during calm regimes
 
 4. **Hard Capital Defense & Anti-Sniper Protection**

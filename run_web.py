@@ -31,7 +31,7 @@ def add_no_cache_headers(response):
 STATE = {
     "status": "RUNNING",
     "mode": "DUAL_MM_ACTIVE",
-    "pair": "EXBT/USDT",
+    "pair": "BTFX/USDT",
     "last_price": 0.3800,
     "target_mid": 0.3800,
     "price_floor": 0.3500,
@@ -43,11 +43,11 @@ STATE = {
     "stp_prevented_count": 1482,
     "circuit_breaker": "ARMED (0/5 err)",
     "wallets": {
-        "account_a": {"usdt": 8450.20, "exbt": 22140.00, "orders": 5},
-        "account_b": {"usdt": 7920.80, "exbt": 20890.00, "orders": 5},
+        "account_a": {"usdt": 8450.20, "btfx": 22140.00, "orders": 5},
+        "account_b": {"usdt": 7920.80, "btfx": 20890.00, "orders": 5},
         "combined_usd": 32742.60,
         "ratio_usdt": 50.8,
-        "ratio_exbt": 49.2
+        "ratio_btfx": 49.2
     }
 }
 
@@ -122,14 +122,14 @@ def api_book_call():
         f"📅 *Preferred Slot*: {data.get('date', 'Flexible')} at {data.get('time', '14:00 UTC')}\n"
         f"📱 *Telegram/WA*: {data.get('telegram', 'N/A')}\n"
         f"📧 *Email*: {data.get('email', 'N/A')}\n"
-        f"📝 *Notes*: {data.get('notes', 'Looking forward to institutional MM onboarding with Exbotix Tech Malaysia.')}"
+        f"📝 *Notes*: {data.get('notes', 'Looking forward to institutional MM onboarding with Bitfilx Tech Malaysia.')}"
     )
 
     return jsonify({
         "ok": True,
         "message": "Call booked successfully!",
         "whatsapp_text": wa_msg,
-        "email_subject": f"Exbotix Tech MM Strategy Consultation - {data.get('token', 'Project')}",
+        "email_subject": f"Bitfilx Tech MM Strategy Consultation - {data.get('token', 'Project')}",
         "email_body": wa_msg
     })
 

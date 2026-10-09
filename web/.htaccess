@@ -1,4 +1,4 @@
-# Hostinger Apache / LiteSpeed Configuration for exbotix.pro
+# Hostinger Apache / LiteSpeed Configuration for Bitfilx Tech
 DirectoryIndex index.html index.php
 Options -Indexes +FollowSymLinks
 
