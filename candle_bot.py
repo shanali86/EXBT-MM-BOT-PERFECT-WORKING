@@ -201,45 +201,54 @@ class CandleBot:
         else:
             is_green = rng.random() < 0.55
 
+        # Natural volume tiering to break uniform 3.9K comb
+        vol_tier = rng.random()
+        if vol_tier < 0.35:
+            base_size = rng.uniform(16.0, 32.0)   # Calm quiet minute
+        elif vol_tier < 0.85:
+            base_size = rng.uniform(36.0, 75.0)   # Normal trading flow
+        else:
+            base_size = rng.uniform(95.0, 185.0)  # Institutional volume burst / surge
+
         ticks = []
         if is_green:
-            # Solid green candle with tiny realistic wicks
-            body = rng.uniform(0.0016, 0.0030)
-            low_wick = rng.uniform(0.0002, 0.0005)
-            high_wick = rng.uniform(0.0002, 0.0006)
+            # Solid green candle with authentic upper and lower wicks
+            body = rng.uniform(0.0018, 0.0036)
+            low_wick = rng.uniform(0.0006, 0.0015)
+            high_wick = rng.uniform(0.0007, 0.0018)
 
             low_p = round(max(price_floor, open_p - low_wick), 4)
             close_p = round(min(price_ceiling, open_p + body), 4)
             high_p = round(min(price_ceiling, close_p + high_wick), 4)
 
             ticks = [
-                (1, range(5, 14), open_p, f"Green Open @ {open_p:.4f}"),
+                (1, range(4, 14), open_p, f"Green Open @ {open_p:.4f}"),
                 (2, range(16, 26), low_p, f"Green Lower Wick @ {low_p:.4f}"),
                 (3, range(28, 40), round(open_p + body * 0.5, 4), f"Green Body Climb @ {open_p + body * 0.5:.4f}"),
                 (4, range(42, 51), high_p, f"Green Upper Wick @ {high_p:.4f}"),
                 (5, range(53, 59), close_p, f"Green Close @ {close_p:.4f}")
             ]
             pattern = "solid_green"
-            size = round(rng.uniform(42.0, 78.0), 1)
+            size = round(base_size, 1)
         else:
-            # Solid red pullback candle with tiny realistic wicks
-            body = rng.uniform(0.0012, 0.0024)
-            high_wick = rng.uniform(0.0002, 0.0005)
-            low_wick = rng.uniform(0.0002, 0.0005)
+            # Solid red pullback candle with authentic upper and lower wicks
+            body = rng.uniform(0.0016, 0.0032)
+            high_wick = rng.uniform(0.0007, 0.0017)
+            low_wick = rng.uniform(0.0006, 0.0014)
 
             high_p = round(min(price_ceiling, open_p + high_wick), 4)
             close_p = round(max(price_floor, open_p - body), 4)
             low_p = round(max(price_floor, close_p - low_wick), 4)
 
             ticks = [
-                (1, range(5, 14), open_p, f"Red Open @ {open_p:.4f}"),
+                (1, range(4, 14), open_p, f"Red Open @ {open_p:.4f}"),
                 (2, range(16, 26), high_p, f"Red Upper Wick @ {high_p:.4f}"),
                 (3, range(28, 40), round(open_p - body * 0.5, 4), f"Red Body Dip @ {open_p - body * 0.5:.4f}"),
                 (4, range(42, 51), low_p, f"Red Lower Wick @ {low_p:.4f}"),
                 (5, range(53, 59), close_p, f"Red Close @ {close_p:.4f}")
             ]
             pattern = "solid_red"
-            size = round(rng.uniform(32.0, 58.0), 1)
+            size = round(base_size * 0.85, 1)
 
         return {
             "bucket": bucket,

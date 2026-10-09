@@ -104,7 +104,7 @@ class MarketRegimeEngine:
             "start_price": round(start_price, 4),
             "target_price": round(target_price, 4),
             "shelf_price": round(target_price, 4),
-            "shelf_amp": round(random.uniform(0.0006, 0.0014), 4),
+            "shelf_amp": round(random.uniform(0.0015, 0.0032), 4),
             "prev_regime": getattr(self, "state", {}).get("regime", None) if hasattr(self, "state") else None
         }
         return state
@@ -161,17 +161,52 @@ class MarketRegimeEngine:
                 target = current_price
 
         else:
-            # TARGET REACHED (>= 0.4020)
+            # ─── MULTI-TIER ORGANIC CYCLE (0.3800 <-> 0.4180 CORRIDOR) ───
+            # Permanently safeguards 0.3500 floor & 0.4200 ceiling.
+            # Breaks rigid ping-pong cage into 3 dynamic shifting zones with random drift.
             self.safe_floor = max(self.safe_floor, 0.3500)
-            if r < 0.55:
-                regime = "CONSOLIDATION"
-                duration = random.uniform(1800, 3600)  # 30 to 60 mins high shelf
-                target = current_price
+
+            # Choice between 3 rotating macro zones:
+            # 1. ZONE_BREAKOUT: Tests upper highs (0.4080 - 0.4180)
+            # 2. ZONE_CONSOLIDATION: Sideways resting (0.3980 - 0.4080)
+            # 3. ZONE_PULLBACK: Healthy retest of support (0.3820 - 0.3960)
+
+            if prev in ("ZONE_BREAKOUT", "IMPULSIVE_UP") or current_price > 0.4120:
+                # After a push to highs, initiate natural healthy retracement or resting shelf
+                if r < 0.55:
+                    regime = "ZONE_CONSOLIDATION"
+                    duration = random.uniform(900, 1800)  # 15 to 30 mins
+                    target = round(random.uniform(0.4010, 0.4075), 4)
+                else:
+                    regime = "ZONE_PULLBACK"
+                    duration = random.uniform(1200, 2400) # 20 to 40 mins
+                    target = round(random.uniform(0.3840, 0.3950), 4)
+
+            elif prev == "ZONE_PULLBACK" or current_price < 0.3920:
+                # After a healthy dip/pullback, initiate a strong bullish expansion rally
+                if r < 0.70:
+                    regime = "ZONE_EXPANSION"
+                    duration = random.uniform(1200, 2400) # 20 to 40 mins
+                    target = round(random.uniform(0.4060, 0.4160), 4)
+                else:
+                    regime = "ZONE_CONSOLIDATION"
+                    duration = random.uniform(900, 1500)  # 15 to 25 mins
+                    target = round(random.uniform(0.3930, 0.4020), 4)
+
             else:
-                regime = "ORGANIC_DRIFT"
-                duration = random.uniform(1200, 2400)
-                drift = random.uniform(-0.0030, 0.0030)
-                target = max(0.3600, min(self.safe_ceiling, current_price + drift))
+                # In middle zone (0.3920 - 0.4120) - randomly select next directional phase
+                if r < 0.40:
+                    regime = "ZONE_BREAKOUT"
+                    duration = random.uniform(900, 1800)  # 15 to 30 mins
+                    target = round(random.uniform(0.4090, 0.4175), 4)
+                elif r < 0.75:
+                    regime = "ZONE_PULLBACK"
+                    duration = random.uniform(1200, 2100) # 20 to 35 mins
+                    target = round(random.uniform(0.3850, 0.3960), 4)
+                else:
+                    regime = "ZONE_CONSOLIDATION"
+                    duration = random.uniform(1200, 2400) # 20 to 40 mins
+                    target = round(random.uniform(0.3980, 0.4060), 4)
 
 
         self.state = self._create_new_state(regime, now, current_price, target, duration)
@@ -194,12 +229,12 @@ class MarketRegimeEngine:
 
         progress = max(0.0, min(1.0, (t - st) / (et - st)))
 
-        if regime in ("IMPULSIVE_UP", "IMPULSIVE_DOWN", "RETRACEMENT"):
+        if regime in ("IMPULSIVE_UP", "IMPULSIVE_DOWN", "RETRACEMENT", "ZONE_EXPANSION", "ZONE_BREAKOUT", "ZONE_PULLBACK"):
             eased = self._quintic_ease(progress)
             return sp + (tp - sp) * eased
-        elif regime == "CONSOLIDATION":
+        elif regime in ("CONSOLIDATION", "ZONE_CONSOLIDATION"):
             shelf = self.state.get("shelf_price", tp)
-            amp = self.state.get("shelf_amp", 0.0008)
+            amp = self.state.get("shelf_amp", 0.0018)
             drift_wave = amp * math.sin(progress * math.pi * 3.0)
             return shelf + drift_wave
         else: # ORGANIC_DRIFT
