@@ -1,17 +1,15 @@
 """
-EXBT/USDT — Natural Micro-Wave & Visible Candlestick Engine
-Paints natural, highly visible candles across 10 distinct candlestick patterns
-with an organic 40-minute price wave cycle:
-  - Uptrend Phase: Bullish green candles & Hammer pin bars (Close > Open)
-  - Downtrend Phase: Bearish red candles & Shooting stars (Close < Open)
-  - Turning Phase: Dojis, Dragonfly, Gravestone, Long-Legged, & Spinning Tops
+EXBT/USDT — Natural BTC-Style Trend Wave & Candlestick Engine
+Paints authentic, organic crypto candlesticks matching BTC/ETH price action:
+  - Multi-candle directional trend runs (Higher Highs & Higher Lows)
+  - Realistic 15-minute chart wave formation (pullbacks, consolidations, breakouts)
+  - Natural candle archetypes: Trend Drives, Healthy Pullbacks, Dojis, and Pinbars
+  - Zero flatline or 0.00 volume bars (5 timed micro-ticks per minute)
 
 ZERO-LOSS ARCHITECTURE:
 - Matched trades between Account A and Account B at the EXACT same price.
 - Zero spread loss ($0.00 spread loss).
-- Alternating buyer/seller flow ensures cash and inventory remain in 50/50 equilibrium.
-- Widen candle range: 1.0% to 1.8% visible body & wicks for clear 5M/15M chart rendering.
-- Corridor bounds: Wave locked between 0.3180 and 0.3370 (Strictly <= 0.3500 ceiling).
+- Auto-rebalance safeguard prevents either account from running out of cash.
 """
 
 import time
@@ -44,11 +42,6 @@ class CandleBot:
         self.day_start = datetime.date.today()
         self.last_action = "INITIALIZING"
 
-        # Living Organic Wave Settings: 30-minute macro-wave
-        self.center_price = float(getattr(config, "WAVE_CENTER_PRICE", 0.3325))
-        self.wave_amplitude = float(getattr(config, "WAVE_AMPLITUDE", 0.0090))    # 0.3235 to 0.3415
-        self.wave_period_sec = float(getattr(config, "WAVE_PERIOD_SEC", 1800.0))  # 30-minute cycle
-
         # Track tick state per minute bucket
         self.last_bucket = -1
         self.ticks_in_bucket: Set[int] = set()
@@ -70,10 +63,9 @@ class CandleBot:
         Executes a zero-spread matched micro-trade between Account A and Account B.
         Guarantees zero spread loss because price is identical on both sides.
         Strictly clamps price INSIDE current spread so maker orders never cross the book.
-        Never allows intra-candle needle plunges (bounds within +/- 0.0016 of open_ref).
         """
         if open_ref > 0:
-            price = max(open_ref - 0.0016, min(open_ref + 0.0035, price))
+            price = max(open_ref - 0.0018, min(open_ref + 0.0022, price))
 
         # 1. Fetch live orderbook to ensure price is strictly inside spread
         try:
@@ -83,8 +75,8 @@ class CandleBot:
             if bids and asks:
                 best_bid = float(bids[0][0])
                 best_ask = float(asks[0][0])
-                min_safe = best_bid + 0.0004
-                max_safe = best_ask - 0.0004
+                min_safe = best_bid + 0.0003
+                max_safe = best_ask - 0.0003
                 if max_safe > min_safe:
                     price = max(min_safe, min(max_safe, price))
                 else:
@@ -94,7 +86,7 @@ class CandleBot:
 
         # Ensure price never plunges outside the planned candle bounds
         if open_ref > 0:
-            price = max(open_ref - 0.0016, min(open_ref + 0.0035, price))
+            price = max(open_ref - 0.0018, min(open_ref + 0.0022, price))
 
         price = round(price, 4)
         amount = round(amount, 2)
@@ -104,18 +96,28 @@ class CandleBot:
         price_ceiling = float(getattr(config, "PRICE_CEILING", 0.4200))
         price = max(price_floor, min(price_ceiling, price))
 
-        # Check notional
+        # Check notional minimum ($5.00)
         if (price * amount) < 5.0:
             amount = round(5.5 / price, 2)
 
         now_ts = int(time.time() * 1000)
         try:
-            if self.turn_a_to_b:
-                seller_client, buyer_client = self.client_a, self.client_b
-                seller_lbl, buyer_lbl = "A", "B"
-            else:
-                seller_client, buyer_client = self.client_b, self.client_a
-                seller_lbl, buyer_lbl = "B", "A"
+            buyer_lbl = "B" if self.turn_a_to_b else "A"
+            seller_lbl = "A" if buyer_lbl == "B" else "B"
+
+            # Auto-rebalance safeguard: if either account drops below 150 USDT, steer cash flow to replenish it
+            try:
+                bal_b_usdt = self.client_b.get_balance("usdt")
+                bal_a_usdt = self.client_a.get_balance("usdt")
+                if bal_b_usdt < 150.0 and bal_a_usdt > 300.0:
+                    buyer_lbl, seller_lbl = "A", "B"  # A buys from B -> B receives USDT
+                elif bal_a_usdt < 150.0 and bal_b_usdt > 300.0:
+                    buyer_lbl, seller_lbl = "B", "A"  # B buys from A -> A receives USDT
+            except Exception:
+                pass
+
+            seller_client = self.client_a if seller_lbl == "A" else self.client_b
+            buyer_client = self.client_b if buyer_lbl == "B" else self.client_a
 
             # 1. Place Maker Sell
             sell_res = seller_client.place_order(
@@ -173,11 +175,11 @@ class CandleBot:
 
     def _generate_minute_candle_plan(self, now: float, bucket: int):
         """
-        Creates an authentic, continuous 1-minute candlestick plan:
-        - 70-80% solid rectangular body (visible green / red blocks).
-        - 15-20% tiny neat wicks (strictly <= 0.0006, NO crazy needle spikes).
-        - 5 smooth ticks per minute distributed across the bar.
-        - Natural alternation between bullish steps and healthy pullbacks.
+        Creates an authentic, continuous BTC-style 1-minute candlestick plan:
+        - Natural micro-steps (0.0004 - 0.0012) allowing 15M candles to develop real trend waves.
+        - Trend persistence: 75%-80% momentum runs during wave expansions.
+        - Varied archetypes: Trend Drives (60%), Rejection Pinbars (20%), Resting Dojis (20%).
+        - 5 smooth ticks per minute ensuring continuous, non-zero volume bars.
         """
         from wave_engine import get_anti_sniper_wave
         wave_target, slope, regime, _ = get_anti_sniper_wave(now)
@@ -193,30 +195,53 @@ class CandleBot:
         rng = random.Random(bucket)
         target_diff = wave_target - open_p
 
-        # Alternating green / red selection matching macro trend
-        if target_diff > 0.0008:
-            is_green = rng.random() < 0.72  # 72% green during upward climb
-        elif target_diff < -0.0008:
-            is_green = rng.random() < 0.35  # 35% green during pullback
+        # Directional continuity: Match macro trend with natural persistence
+        if target_diff > 0.0005:
+            is_green = rng.random() < 0.78  # 78% green during upward wave climb
+        elif target_diff < -0.0005:
+            is_green = rng.random() < 0.22  # 22% green (78% red) during healthy pullback
         else:
-            is_green = rng.random() < 0.55
+            is_green = rng.random() < 0.50  # Balanced alternation on flat shelves
 
-        # Natural volume tiering to break uniform 3.9K comb
-        vol_tier = rng.random()
-        if vol_tier < 0.35:
-            base_size = rng.uniform(16.0, 32.0)   # Calm quiet minute
-        elif vol_tier < 0.85:
-            base_size = rng.uniform(36.0, 75.0)   # Normal trading flow
+        # Proportional 1-minute body size (BTC-style realistic increments)
+        if abs(target_diff) > 0.0025:
+            body = rng.uniform(0.0006, 0.0013)  # Active momentum move
+        elif abs(target_diff) > 0.0010:
+            body = rng.uniform(0.0004, 0.0009)  # Smooth steady climb / dip
         else:
-            base_size = rng.uniform(95.0, 185.0)  # Institutional volume burst / surge
+            body = rng.uniform(0.0001, 0.0004)  # Tight resting / consolidation
+
+        # Candle Archetype Selection (Adds organic human-market flavor)
+        archetype_r = rng.random()
+        if archetype_r < 0.60:
+            # Archetype 1: Trend Drive (solid full body, tiny neat wicks)
+            low_wick = rng.uniform(0.0001, 0.0004)
+            high_wick = rng.uniform(0.0001, 0.0004)
+        elif archetype_r < 0.82:
+            # Archetype 2: Rejection Pinbar (noticeable wick showing support/resistance)
+            if is_green:
+                low_wick = rng.uniform(0.0004, 0.0009)
+                high_wick = rng.uniform(0.0001, 0.0003)
+            else:
+                high_wick = rng.uniform(0.0004, 0.0009)
+                low_wick = rng.uniform(0.0001, 0.0003)
+        else:
+            # Archetype 3: Spinning top / Doji (indecision resting pause)
+            body = rng.uniform(0.0001, 0.0003)
+            low_wick = rng.uniform(0.0003, 0.0006)
+            high_wick = rng.uniform(0.0003, 0.0006)
+
+        # Natural volume tiering to break uniform combs
+        vol_tier = rng.random()
+        if vol_tier < 0.40:
+            base_size = rng.uniform(18.0, 36.0)   # Organic quiet flow
+        elif vol_tier < 0.85:
+            base_size = rng.uniform(42.0, 85.0)   # Normal trading flow
+        else:
+            base_size = rng.uniform(110.0, 195.0) # Momentum volume surge
 
         ticks = []
         if is_green:
-            # Solid green candle with authentic upper and lower wicks
-            body = rng.uniform(0.0018, 0.0036)
-            low_wick = rng.uniform(0.0006, 0.0015)
-            high_wick = rng.uniform(0.0007, 0.0018)
-
             low_p = round(max(price_floor, open_p - low_wick), 4)
             close_p = round(min(price_ceiling, open_p + body), 4)
             high_p = round(min(price_ceiling, close_p + high_wick), 4)
@@ -231,11 +256,6 @@ class CandleBot:
             pattern = "solid_green"
             size = round(base_size, 1)
         else:
-            # Solid red pullback candle with authentic upper and lower wicks
-            body = rng.uniform(0.0016, 0.0032)
-            high_wick = rng.uniform(0.0007, 0.0017)
-            low_wick = rng.uniform(0.0006, 0.0014)
-
             high_p = round(min(price_ceiling, open_p + high_wick), 4)
             close_p = round(max(price_floor, open_p - body), 4)
             low_p = round(max(price_floor, close_p - low_wick), 4)
@@ -292,7 +312,7 @@ class CandleBot:
             logger.info("Candle Bot is DISABLED in config")
             return
 
-        logger.info("🎨 Candle Bot (Natural Micro-Wave & Visible Candlestick Engine) Starting...")
+        logger.info("🎨 Candle Bot (Natural BTC-Style Wave & Visible Candlestick Engine) Starting...")
         self.is_running = True
 
         while self.is_running:
