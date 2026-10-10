@@ -109,15 +109,15 @@ class CandleBot:
 
         # 2. Smooth delta: Cap step changes to prevent sudden vertical staircase gaps
         if self.last_candle_close is not None and self.last_candle_close > 0:
-            max_step = 0.0007  # Max 7 pips per tick change
+            max_step = 0.0005  # Max 5 pips per tick change
             price = max(self.last_candle_close - max_step, min(self.last_candle_close + max_step, price))
 
         price = round(price, 4)
         amount = round(amount, 2)
 
-        # Enforce strict corridor [PRICE_FLOOR, PRICE_CEILING]
+        # Enforce strict corridor [PRICE_FLOOR, CANDLE_MAX_PRICE]
         price_floor = float(getattr(config, "PRICE_FLOOR", 0.3500))
-        price_ceiling = float(getattr(config, "PRICE_CEILING", 0.4200))
+        price_ceiling = float(getattr(config, "CANDLE_MAX_PRICE", 0.4085))
         price = max(price_floor, min(price_ceiling, price))
 
         # Check notional minimum ($5.00)
@@ -217,7 +217,7 @@ class CandleBot:
         wave_target, slope, regime, _ = get_anti_sniper_wave(now)
 
         price_floor = float(getattr(config, "PRICE_FLOOR", 0.3500))
-        price_ceiling = float(getattr(config, "PRICE_CEILING", 0.4200))
+        price_ceiling = float(getattr(config, "CANDLE_MAX_PRICE", 0.4085))
 
         if self.last_candle_close is None:
             try:
@@ -239,19 +239,19 @@ class CandleBot:
 
         # Directional continuity: Match macro trend with natural persistence
         if target_diff > 0.0005:
-            is_green = rng.random() < 0.78  # 78% green during upward wave climb
+            is_green = rng.random() < 0.70  # 70% green during upward wave climb
         elif target_diff < -0.0005:
-            is_green = rng.random() < 0.22  # 22% green (78% red) during healthy pullback
+            is_green = rng.random() < 0.30  # 30% green (70% red) during healthy pullback
         else:
             is_green = rng.random() < 0.50  # Balanced alternation on flat shelves
 
-        # Proportional 1-minute body size (BTC-style realistic increments)
+        # Proportional 1-minute body size (Gentle, realistic crypto increments)
         if abs(target_diff) > 0.0025:
-            body = rng.uniform(0.0006, 0.0013)  # Active momentum move
+            body = rng.uniform(0.0004, 0.0007)  # Gentle momentum move
         elif abs(target_diff) > 0.0010:
-            body = rng.uniform(0.0004, 0.0009)  # Smooth steady climb / dip
+            body = rng.uniform(0.0003, 0.0005)  # Smooth steady climb / dip
         else:
-            body = rng.uniform(0.0001, 0.0004)  # Tight resting / consolidation
+            body = rng.uniform(0.0001, 0.0003)  # Tight resting / consolidation
 
         # Candle Archetype Selection (Adds organic human-market flavor)
         archetype_r = rng.random()
