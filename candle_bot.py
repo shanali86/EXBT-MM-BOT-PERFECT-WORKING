@@ -10,6 +10,8 @@ ZERO-LOSS ARCHITECTURE:
 - Matched trades between Account A and Account B at the EXACT same price.
 - Zero spread loss ($0.00 spread loss).
 - Auto-rebalance safeguard prevents either account from running out of cash.
+- Dynamic inner-pocket spread floating prevents pinning against MM orderbook walls.
+- Anti-staircase step capping guarantees smooth, continuous price transitions.
 """
 
 import time
@@ -58,15 +60,31 @@ class CandleBot:
             self.day_start = today
             logger.info("📅 New day — candle stats reset")
 
+    def _cleanup_stale_candle_orders(self):
+        """Cancels any orphan candle orders older than 8 seconds to prevent book blockage."""
+        now_ts = int(time.time() * 1000)
+        for client in [self.client_a, self.client_b]:
+            try:
+                orders = client.get_open_orders(self.symbol)
+                for o in orders:
+                    cid = str(o.get("custom_id", ""))
+                    if cid.startswith("cndl_"):
+                        parts = cid.split("_")
+                        if len(parts) >= 4 and parts[-1].isdigit():
+                            order_ts = int(parts[-1])
+                            if (now_ts - order_ts) > 8000:  # Older than 8s
+                                client.cancel_order(self.symbol, o.get("order_id"))
+                        else:
+                            client.cancel_order(self.symbol, o.get("order_id"))
+            except Exception as e:
+                logger.debug(f"Stale candle order cleanup error: {e}")
+
     def _execute_matched_trade(self, price: float, amount: float = 18.0, open_ref: float = 0.0) -> bool:
         """
         Executes a zero-spread matched micro-trade between Account A and Account B.
         Guarantees zero spread loss because price is identical on both sides.
-        Strictly clamps price INSIDE current spread so maker orders never cross the book.
+        Strictly floats price INSIDE current spread corridor so maker orders never cross the book.
         """
-        if open_ref > 0:
-            price = max(open_ref - 0.0018, min(open_ref + 0.0022, price))
-
         # 1. Fetch live orderbook to ensure price is strictly inside spread
         try:
             ob = self.client_a.get_orderbook(self.symbol, size=5)
@@ -75,8 +93,13 @@ class CandleBot:
             if bids and asks:
                 best_bid = float(bids[0][0])
                 best_ask = float(asks[0][0])
-                min_safe = best_bid + 0.0003
-                max_safe = best_ask - 0.0003
+                spread = best_ask - best_bid
+
+                # Safe inner pocket: keep trade inside the middle safe zone of the spread
+                buffer = max(0.0006, spread * 0.12)
+                min_safe = best_bid + buffer
+                max_safe = best_ask - buffer
+
                 if max_safe > min_safe:
                     price = max(min_safe, min(max_safe, price))
                 else:
@@ -84,9 +107,10 @@ class CandleBot:
         except Exception as e:
             logger.debug(f"Orderbook fetch for spread clamp: {e}")
 
-        # Ensure price never plunges outside the planned candle bounds
-        if open_ref > 0:
-            price = max(open_ref - 0.0018, min(open_ref + 0.0022, price))
+        # 2. Smooth delta: Cap step changes to prevent sudden vertical staircase gaps
+        if self.last_candle_close is not None and self.last_candle_close > 0:
+            max_step = 0.0007  # Max 7 pips per tick change
+            price = max(self.last_candle_close - max_step, min(self.last_candle_close + max_step, price))
 
         price = round(price, 4)
         amount = round(amount, 2)
@@ -128,7 +152,7 @@ class CandleBot:
                 order_type="maker",
                 custom_id=f"cndl_s_{seller_lbl}_{now_ts}"
             )
-            sell_id = sell_res.get("order_id")
+            sell_id = sell_res.get("order_id") if isinstance(sell_res, dict) else None
             if not sell_id:
                 return False
 
@@ -143,25 +167,33 @@ class CandleBot:
                 order_type="limit",
                 custom_id=f"cndl_b_{buyer_lbl}_{now_ts}"
             )
+            buy_id = buy_res.get("order_id") if isinstance(buy_res, dict) else None
+            if not buy_id:
+                # Immediate rescue: Cancel maker sell right away if buy failed
+                try:
+                    seller_client.cancel_order(self.symbol, sell_id)
+                except Exception:
+                    pass
+                return False
 
             # Alternate turn for next trade so cash circulates back and forth
             self.turn_a_to_b = not self.turn_a_to_b
             self.total_volume_today += amount
+            self.last_candle_close = price  # Update with live executed price
 
             logger.info(
                 f"🕯️ CANDLE TICK: {amount:.2f} EXBT @ {price:.4f} USDT | "
                 f"Seller: {seller_lbl} -> Buyer: {buyer_lbl} | Spread Loss: $0.00"
             )
 
-            # Auto-cleanup safety: Wait 1.0s and cancel residual order if partially unfilled
-            time.sleep(1.0)
+            # Auto-cleanup safety: Wait 0.8s and cancel residual order if partially unfilled
+            time.sleep(0.8)
             try:
                 if sell_id:
                     seller_client.cancel_order(self.symbol, sell_id)
             except Exception:
                 pass
             try:
-                buy_id = buy_res.get("order_id")
                 if buy_id:
                     buyer_client.cancel_order(self.symbol, buy_id)
             except Exception:
@@ -188,7 +220,17 @@ class CandleBot:
         price_ceiling = float(getattr(config, "PRICE_CEILING", 0.4200))
 
         if self.last_candle_close is None:
-            self.last_candle_close = round(wave_target, 4)
+            try:
+                ob = self.client_a.get_orderbook(self.symbol, size=5)
+                bids = ob.get("bids", [])
+                asks = ob.get("asks", [])
+                if bids and asks:
+                    mid = (float(bids[0][0]) + float(asks[0][0])) / 2.0
+                    self.last_candle_close = round(mid, 4)
+                else:
+                    self.last_candle_close = round(wave_target, 4)
+            except Exception:
+                self.last_candle_close = round(wave_target, 4)
 
         # Continuity: Start right at previous candle close
         open_p = round(max(price_floor, min(price_ceiling, self.last_candle_close)), 4)
@@ -291,6 +333,7 @@ class CandleBot:
             self.last_bucket = bucket
             self.ticks_in_bucket.clear()
             self.candles_painted_today += 1
+            self._cleanup_stale_candle_orders()
             self.current_minute_plan = self._generate_minute_candle_plan(now, bucket)
 
         if not self.current_minute_plan:
@@ -301,10 +344,7 @@ class CandleBot:
             if second in sec_range and tick_id not in self.ticks_in_bucket:
                 self.ticks_in_bucket.add(tick_id)
                 self.last_action = label
-                success = self._execute_matched_trade(price, plan["size"], plan["open"])
-                # Tick 5 is the final close of the candle
-                if tick_id == 5 or tick_id == len(plan["ticks"]):
-                    self.last_candle_close = plan["close"]
+                self._execute_matched_trade(price, plan["size"], plan["open"])
                 break
 
     def run(self):
@@ -313,6 +353,7 @@ class CandleBot:
             return
 
         logger.info("🎨 Candle Bot (Natural BTC-Style Wave & Visible Candlestick Engine) Starting...")
+        self._cleanup_stale_candle_orders()
         self.is_running = True
 
         while self.is_running:
