@@ -251,62 +251,55 @@ class CandleBot:
         elif abs(target_diff) > 0.0010:
             body = rng.uniform(0.0003, 0.0005)  # Smooth steady climb / dip
         else:
-            body = rng.uniform(0.0001, 0.0003)  # Tight resting / consolidation
+            body = rng.uniform(0.0002, 0.0004)  # Normal resting consolidation
 
-        # Candle Archetype Selection (Adds organic human-market flavor)
+        # Clean Solid Candle Formation: 85% Solid full bodies (NO spiky needles!)
         archetype_r = rng.random()
-        if archetype_r < 0.60:
-            # Archetype 1: Trend Drive (solid full body, tiny neat wicks)
-            low_wick = rng.uniform(0.0001, 0.0004)
-            high_wick = rng.uniform(0.0001, 0.0004)
-        elif archetype_r < 0.82:
-            # Archetype 2: Rejection Pinbar (noticeable wick showing support/resistance)
-            if is_green:
-                low_wick = rng.uniform(0.0004, 0.0009)
-                high_wick = rng.uniform(0.0001, 0.0003)
-            else:
-                high_wick = rng.uniform(0.0004, 0.0009)
-                low_wick = rng.uniform(0.0001, 0.0003)
-        else:
-            # Archetype 3: Spinning top / Doji (indecision resting pause)
-            body = rng.uniform(0.0001, 0.0003)
-            low_wick = rng.uniform(0.0003, 0.0006)
-            high_wick = rng.uniform(0.0003, 0.0006)
+        has_wick = archetype_r > 0.85
+        wick_size = rng.uniform(0.0001, 0.0002) if has_wick else 0.0000
 
         # Natural volume tiering to break uniform combs
         vol_tier = rng.random()
         if vol_tier < 0.40:
-            base_size = rng.uniform(18.0, 36.0)   # Organic quiet flow
+            base_size = rng.uniform(22.0, 38.0)   # Organic quiet flow
         elif vol_tier < 0.85:
-            base_size = rng.uniform(42.0, 85.0)   # Normal trading flow
+            base_size = rng.uniform(45.0, 85.0)   # Normal trading flow
         else:
-            base_size = rng.uniform(110.0, 195.0) # Momentum volume surge
+            base_size = rng.uniform(95.0, 160.0)  # Momentum volume surge
 
         ticks = []
         if is_green:
-            low_p = round(max(price_floor, open_p - low_wick), 4)
             close_p = round(min(price_ceiling, open_p + body), 4)
-            high_p = round(min(price_ceiling, close_p + high_wick), 4)
+            high_p = round(min(price_ceiling, close_p + wick_size), 4)
+
+            # Solid clean climb: Open -> Step 1 -> Step 2 -> Step 3 -> Close (No spiky needles)
+            step1 = round(open_p + (close_p - open_p) * 0.25, 4)
+            step2 = round(open_p + (close_p - open_p) * 0.55, 4)
+            step3 = round(open_p + (close_p - open_p) * 0.82, 4)
 
             ticks = [
                 (1, range(4, 14), open_p, f"Green Open @ {open_p:.4f}"),
-                (2, range(16, 26), low_p, f"Green Lower Wick @ {low_p:.4f}"),
-                (3, range(28, 40), round(open_p + body * 0.5, 4), f"Green Body Climb @ {open_p + body * 0.5:.4f}"),
-                (4, range(42, 51), high_p, f"Green Upper Wick @ {high_p:.4f}"),
+                (2, range(16, 26), step1, f"Green Step 1 @ {step1:.4f}"),
+                (3, range(28, 40), step2, f"Green Step 2 @ {step2:.4f}"),
+                (4, range(42, 51), step3 if not has_wick else high_p, f"Green Step 3 @ {step3:.4f}"),
                 (5, range(53, 59), close_p, f"Green Close @ {close_p:.4f}")
             ]
             pattern = "solid_green"
             size = round(base_size, 1)
         else:
-            high_p = round(min(price_ceiling, open_p + high_wick), 4)
             close_p = round(max(price_floor, open_p - body), 4)
-            low_p = round(max(price_floor, close_p - low_wick), 4)
+            low_p = round(max(price_floor, close_p - wick_size), 4)
+
+            # Solid clean dip: Open -> Step 1 -> Step 2 -> Step 3 -> Close (No spiky needles)
+            step1 = round(open_p - (open_p - close_p) * 0.25, 4)
+            step2 = round(open_p - (open_p - close_p) * 0.55, 4)
+            step3 = round(open_p - (open_p - close_p) * 0.82, 4)
 
             ticks = [
                 (1, range(4, 14), open_p, f"Red Open @ {open_p:.4f}"),
-                (2, range(16, 26), high_p, f"Red Upper Wick @ {high_p:.4f}"),
-                (3, range(28, 40), round(open_p - body * 0.5, 4), f"Red Body Dip @ {open_p - body * 0.5:.4f}"),
-                (4, range(42, 51), low_p, f"Red Lower Wick @ {low_p:.4f}"),
+                (2, range(16, 26), step1, f"Red Step 1 @ {step1:.4f}"),
+                (3, range(28, 40), step2, f"Red Step 2 @ {step2:.4f}"),
+                (4, range(42, 51), step3 if not has_wick else low_p, f"Red Step 3 @ {step3:.4f}"),
                 (5, range(53, 59), close_p, f"Red Close @ {close_p:.4f}")
             ]
             pattern = "solid_red"

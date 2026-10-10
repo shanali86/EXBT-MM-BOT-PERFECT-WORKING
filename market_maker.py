@@ -497,14 +497,8 @@ class MarketMaker:
             logger.error(f"[{self.account_label}] ❌ Cannot connect to LBank API. Check API keys.")
             return
 
-        # Startup reconciliation
-        logger.info(f"[{self.account_label}] Startup reconciliation...")
-        if not self.cancel_stale_orders():
-            logger.error(f"[{self.account_label}] Startup reconciliation FAILED. Halting.")
-            return
-
-        time.sleep(getattr(config, "STARTUP_DELAY_SEC", 5))
-
+        # True Zero-Gap Startup: Keep existing orders live on book until new grid is placed
+        logger.info(f"[{self.account_label}] Zero-Gap Startup: Preserving existing orders on book until new grid is live...")
         if self.startup_stagger_sec > 0:
             logger.info(f"[{self.account_label}] Stagger timing: waiting {self.startup_stagger_sec}s...")
             time.sleep(self.startup_stagger_sec)
@@ -548,10 +542,11 @@ class MarketMaker:
 
                     if placement_ok:
                         # Cancel previous grid AFTER new orders are already live (True Zero Gap)
+                        new_ids = set(str(o.get("order_id")) for o in self.active_orders)
                         if old_orders:
                             for old_o in old_orders:
-                                oid = old_o.get("order_id")
-                                if oid:
+                                oid = str(old_o.get("order_id") or "")
+                                if oid and oid not in new_ids:
                                     if not self.dry_run:
                                         try:
                                             self.client.cancel_order(self.symbol, oid)
@@ -560,6 +555,27 @@ class MarketMaker:
                                     self.stp.remove_order(oid)
                                     self.fill_monitor.untrack_order(oid)
                                     time.sleep(0.01)
+
+                        # Clean up any leftover owned orders from exchange that are not in the new active grid
+                        if not self.dry_run:
+                            try:
+                                exchange_orders = self.client.get_open_orders(self.symbol)
+                                for o in exchange_orders:
+                                    oid = str(o.get("order_id") or "")
+                                    cid = str(o.get("custom_id") or "")
+                                    if oid and oid not in new_ids:
+                                        is_mine = cid.startswith(self.id_prefix) or (self.account_label == "A" and (cid.startswith("mm_buy_") or cid.startswith("mm_sell_")))
+                                        if is_mine:
+                                            try:
+                                                self.client.cancel_order(self.symbol, oid)
+                                            except Exception:
+                                                pass
+                                            self.stp.remove_order(oid)
+                                            self.fill_monitor.untrack_order(oid)
+                                            time.sleep(0.01)
+                            except Exception:
+                                pass
+
                         self.last_refresh = time.time()
                         self.last_refresh_mid = mid_price
                     else:
