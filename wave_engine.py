@@ -119,74 +119,92 @@ class MarketRegimeEngine:
         self.recent_swing_high = max(self.recent_swing_high, current_price)
         self.recent_swing_low = min(self.recent_swing_low, current_price)
 
-        # ─── ORGANIC BTC-STYLE MARKOV STATE MACHINE ─────────────────────────
-        # 1. IMPULSIVE_UP: Strong multi-candle bullish drive (10-20 mins, 35-70 pips)
-        # 2. ZONE_CONSOLIDATION: Sideways resting base with sinusoidal breathing (10-20 mins)
-        # 3. RETRACEMENT: Healthy shallow dip (8-15 mins, 20-45 pips)
-        # 4. ZONE_EXPANSION: Breakout continuation testing upper resistance (12-23 mins)
+        # ─── 1. MACRO DRIFT (8-Hour Smooth Baseline Wave) ────────────────────
+        # Smoothly shifts the market's center of gravity between 0.3960 and 0.4045
+        # completely eliminating flat 10-hour horizontal boxes!
+        macro_period = 28800.0  # 8 hours
+        macro_drift = 0.0038 * math.sin((now / macro_period) * 2.0 * math.pi)
+        macro_baseline = 0.4005 + macro_drift
 
-        if prev == "IMPULSIVE_UP" or current_price >= (self.safe_ceiling - 0.0040):
+        # ─── 2. ASYMMETRIC ORGANIC REGIME TRANSITIONS ────────────────────────
+        # 1. IMPULSIVE_UP: Bullish drive with irregular heights (never the same peak)
+        # 2. ZONE_CONSOLIDATION: Sideways resting base with natural sinusoidal breathing
+        # 3. RETRACEMENT: Healthy shallow to medium dip (20-60 pips)
+        # 4. ZONE_EXPANSION: Breakout continuation or recovery rally
+
+        if prev == "IMPULSIVE_UP" or current_price >= (self.safe_ceiling - 0.0035):
             # After an impulsive upward drive:
-            # 60% chance to build a high consolidation shelf (bull flag)
-            # 40% chance of a healthy shallow retracement
-            if r < 0.60:
+            # 55% chance to build a resting consolidation shelf
+            # 45% chance of a healthy pullback
+            if r < 0.55:
                 regime = "ZONE_CONSOLIDATION"
-                duration = random.uniform(600, 1200)   # 10 to 20 mins
-                target = round(max(self.safe_floor, current_price - random.uniform(0.0008, 0.0022)), 4)
+                duration = random.uniform(600, 1300)   # 10 to 22 mins
+                target = round(current_price + random.uniform(-0.0012, 0.0008), 4)
             else:
                 regime = "RETRACEMENT"
-                duration = random.uniform(480, 900)    # 8 to 15 mins
-                # Retrace 38.2% to 50% of recent run, preserving higher low
-                retrace_amt = random.uniform(0.0030, 0.0055)
-                target = round(max(self.safe_floor + 0.0100, current_price - retrace_amt), 4)
+                duration = random.uniform(480, 960)    # 8 to 16 mins
+                # Asymmetric retrace: deeper if price was high, shallow if price was mid
+                retrace_amt = random.uniform(0.0030, 0.0068)
+                target = round(max(0.3920, current_price - retrace_amt), 4)
 
-        elif prev == "RETRACEMENT" or current_price <= (self.safe_floor + 0.0120):
-            # After a healthy pullback:
-            # 70% chance of an upward expansion rally (forming higher high)
-            # 30% chance of accumulation base
-            if r < 0.70:
-                regime = "ZONE_EXPANSION"
-                duration = random.uniform(720, 1380)   # 12 to 23 mins
-                push_amt = random.uniform(0.0040, 0.0080)
-                target = round(min(self.safe_ceiling, current_price + push_amt), 4)
-            else:
-                regime = "ZONE_CONSOLIDATION"
-                duration = random.uniform(600, 1080)   # 10 to 18 mins
-                target = round(current_price + random.uniform(-0.0008, 0.0012), 4)
-
-        elif prev in ("ZONE_CONSOLIDATION", "CONSOLIDATION"):
-            # From a resting shelf:
-            # 65% chance of bullish breakout continuation
-            # 35% chance of shallow dip to shake weak hands
+        elif prev == "RETRACEMENT" or current_price <= (macro_baseline - 0.0050):
+            # After a pullback / near macro low:
+            # 65% chance of an upward recovery rally
+            # 35% chance of accumulation base
             if r < 0.65:
-                regime = "IMPULSIVE_UP"
-                duration = random.uniform(600, 1200)   # 10 to 20 mins
+                regime = "ZONE_EXPANSION"
+                duration = random.uniform(700, 1400)   # 11 to 23 mins
                 push_amt = random.uniform(0.0035, 0.0075)
                 target = round(min(self.safe_ceiling, current_price + push_amt), 4)
             else:
-                regime = "RETRACEMENT"
-                duration = random.uniform(480, 840)    # 8 to 14 mins
-                target = round(max(self.safe_floor + 0.0100, current_price - random.uniform(0.0020, 0.0045)), 4)
-
-        else: # ZONE_EXPANSION or other
-            # After expansion: hold base or consolidate
-            if r < 0.60:
                 regime = "ZONE_CONSOLIDATION"
+                duration = random.uniform(600, 1100)   # 10 to 18 mins
+                target = round(current_price + random.uniform(-0.0008, 0.0014), 4)
+
+        elif prev in ("ZONE_CONSOLIDATION", "CONSOLIDATION"):
+            # From a resting shelf:
+            # Decide direction based on macro trend + randomness
+            if macro_drift >= 0:
+                up_prob = 0.65
+            else:
+                up_prob = 0.45
+
+            if r < up_prob:
+                regime = "IMPULSIVE_UP"
                 duration = random.uniform(600, 1200)   # 10 to 20 mins
-                target = round(current_price - random.uniform(0.0006, 0.0018), 4)
+                push_amt = random.uniform(0.0030, 0.0070)
+                target = round(min(self.safe_ceiling, current_price + push_amt), 4)
             else:
                 regime = "RETRACEMENT"
                 duration = random.uniform(480, 900)    # 8 to 15 mins
-                target = round(max(self.safe_floor + 0.0100, current_price - random.uniform(0.0025, 0.0050)), 4)
+                target = round(max(0.3920, current_price - random.uniform(0.0025, 0.0055)), 4)
 
-        # Clamping
-        target = round(max(self.safe_floor + 0.0050, min(self.safe_ceiling, target)), 4)
+        else: # ZONE_EXPANSION or other
+            if r < 0.55:
+                regime = "ZONE_CONSOLIDATION"
+                duration = random.uniform(600, 1200)   # 10 to 20 mins
+                target = round(current_price + random.uniform(-0.0010, 0.0010), 4)
+            else:
+                regime = "RETRACEMENT"
+                duration = random.uniform(480, 900)    # 8 to 15 mins
+                target = round(max(0.3920, current_price - random.uniform(0.0030, 0.0060)), 4)
+
+        # ─── 3. ANTI-SNIPER & ANTI-REPEAT PATTERN RULE ───────────────────────
+        # Ensure target is NEVER within 15 pips of previous target (destroys double tops/bottoms)
+        last_target = getattr(self, "last_target_price", None)
+        if last_target is not None and abs(target - last_target) < 0.0016:
+            shift = random.choice([-0.0025, 0.0025])
+            target += shift
+
+        # Strictly enforce safety envelope: [0.3910, CANDLE_MAX_PRICE]
+        target = round(max(0.3910, min(self.safe_ceiling, target)), 4)
+        self.last_target_price = target
 
         self.state = self._create_new_state(regime, now, current_price, target, duration)
         self._save_state()
         logger.info(
-            f"🌊 Organic Market Wave Transition: {prev} -> {regime} | "
-            f"Start: {current_price:.4f} -> Target: {target:.4f} | "
+            f"🌊 Anti-Sniper Market Wave Transition: {prev} -> {regime} | "
+            f"Start: {current_price:.4f} -> Target: {target:.4f} (Macro: {macro_baseline:.4f}) | "
             f"Duration: {int(duration / 60)} min"
         )
 
