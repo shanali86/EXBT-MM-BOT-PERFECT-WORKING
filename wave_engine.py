@@ -112,6 +112,41 @@ class MarketRegimeEngine:
         }
         return state
 
+    def _get_effective_bounds(self) -> Tuple[float, float]:
+        """
+        Dynamically computes effective floor and ceiling:
+        - Hard floor: 0.3700
+        - Hard ceiling: 0.4085 (strictly sub-0.41)
+        - If Trap Flush is active: ceiling is locked to trap ceiling below buyer's entry
+        """
+        floor = float(getattr(config, "PRICE_FLOOR", 0.3700))
+        ceil = float(getattr(config, "CANDLE_MAX_PRICE", 0.4085))
+
+        trap_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "trap_state.json")
+        try:
+            if os.path.exists(trap_file):
+                with open(trap_file, "r") as f:
+                    trap = json.load(f)
+                    if trap.get("trap_active") and time.time() < trap.get("expires_at", 0):
+                        locked_c = float(trap.get("locked_ceiling", ceil))
+                        ceil = min(ceil, locked_c)
+        except Exception:
+            pass
+
+        return floor, ceil
+
+    def _check_trap_active(self, now: float) -> Tuple[bool, dict]:
+        trap_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "trap_state.json")
+        try:
+            if os.path.exists(trap_file):
+                with open(trap_file, "r") as f:
+                    trap = json.load(f)
+                    if trap.get("trap_active") and now < trap.get("expires_at", 0):
+                        return True, trap
+        except Exception:
+            pass
+        return False, {}
+
     def _transition_next_regime(self, now: float, current_price: float):
         prev = self.state.get("regime", "ZONE_CONSOLIDATION")
         r = random.random()
@@ -120,23 +155,33 @@ class MarketRegimeEngine:
         self.recent_swing_high = max(self.recent_swing_high, current_price)
         self.recent_swing_low = min(self.recent_swing_low, current_price)
 
+        safe_floor, safe_ceiling = self._get_effective_bounds()
+
+        # ─── PREDATORY TRAP FLUSH OVERRIDE ───────────────────────────────────
+        # If an external user bought >= $100 USDT, lock ceiling and force immediate panic dump!
+        trap_active, trap_data = self._check_trap_active(now)
+        if trap_active:
+            regime = "RETRACEMENT"
+            duration = random.uniform(600, 1500)  # 10 to 25 mins
+            flush_drop = random.uniform(0.0020, 0.0040)
+            target = round(max(safe_floor, trap_data["buyer_fill_price"] - flush_drop), 4)
+            self.last_target_price = target
+            self.state = self._create_new_state(regime, now, current_price, target, duration)
+            self._save_state()
+            logger.warning(
+                f"🚨 PREDATORY FLUSH ACTIVE: External user bought @ {trap_data['buyer_fill_price']:.4f}! "
+                f"Dumping price down to {target:.4f} (Ceiling locked <= {safe_ceiling:.4f})"
+            )
+            return
+
         # ─── 1. MACRO DRIFT (8-Hour Smooth Baseline Wave) ────────────────────
-        # Smoothly shifts the market's center of gravity between 0.3960 and 0.4045
-        # completely eliminating flat 10-hour horizontal boxes!
         macro_period = 28800.0  # 8 hours
         macro_drift = 0.0038 * math.sin((now / macro_period) * 2.0 * math.pi)
-        macro_baseline = 0.4005 + macro_drift
+        macro_baseline = 0.3995 + macro_drift
 
         # ─── 2. ASYMMETRIC ORGANIC REGIME TRANSITIONS ────────────────────────
-        # 1. IMPULSIVE_UP: Bullish drive with irregular heights (never the same peak)
-        # 2. ZONE_CONSOLIDATION: Sideways resting base with natural sinusoidal breathing
-        # 3. RETRACEMENT: Healthy shallow to medium dip (20-60 pips)
-        # 4. ZONE_EXPANSION: Breakout continuation or recovery rally
-
-        if prev == "IMPULSIVE_UP" or current_price >= (self.safe_ceiling - 0.0035):
+        if prev == "IMPULSIVE_UP" or current_price >= (safe_ceiling - 0.0035):
             # After an impulsive upward drive:
-            # 55% chance to build a resting consolidation shelf
-            # 45% chance of a healthy pullback
             if r < 0.55:
                 regime = "ZONE_CONSOLIDATION"
                 duration = random.uniform(600, 1300)   # 10 to 22 mins
@@ -144,9 +189,8 @@ class MarketRegimeEngine:
             else:
                 regime = "RETRACEMENT"
                 duration = random.uniform(480, 960)    # 8 to 16 mins
-                # Asymmetric retrace: deeper if price was high, shallow if price was mid
                 retrace_amt = random.uniform(0.0030, 0.0068)
-                target = round(max(0.3920, current_price - retrace_amt), 4)
+                target = round(max(safe_floor + 0.0050, current_price - retrace_amt), 4)
 
         elif prev == "RETRACEMENT" or current_price <= (macro_baseline - 0.0050):
             # After a pullback / near macro low:
@@ -156,7 +200,7 @@ class MarketRegimeEngine:
                 regime = "ZONE_EXPANSION"
                 duration = random.uniform(700, 1400)   # 11 to 23 mins
                 push_amt = random.uniform(0.0035, 0.0075)
-                target = round(min(self.safe_ceiling, current_price + push_amt), 4)
+                target = round(min(safe_ceiling, current_price + push_amt), 4)
             else:
                 regime = "ZONE_CONSOLIDATION"
                 duration = random.uniform(600, 1100)   # 10 to 18 mins
@@ -164,7 +208,6 @@ class MarketRegimeEngine:
 
         elif prev in ("ZONE_CONSOLIDATION", "CONSOLIDATION"):
             # From a resting shelf:
-            # Decide direction based on macro trend + randomness
             if macro_drift >= 0:
                 up_prob = 0.65
             else:
@@ -174,11 +217,11 @@ class MarketRegimeEngine:
                 regime = "IMPULSIVE_UP"
                 duration = random.uniform(600, 1200)   # 10 to 20 mins
                 push_amt = random.uniform(0.0030, 0.0070)
-                target = round(min(self.safe_ceiling, current_price + push_amt), 4)
+                target = round(min(safe_ceiling, current_price + push_amt), 4)
             else:
                 regime = "RETRACEMENT"
                 duration = random.uniform(480, 900)    # 8 to 15 mins
-                target = round(max(0.3920, current_price - random.uniform(0.0025, 0.0055)), 4)
+                target = round(max(safe_floor + 0.0050, current_price - random.uniform(0.0025, 0.0055)), 4)
 
         else: # ZONE_EXPANSION or other
             if r < 0.55:
@@ -188,17 +231,16 @@ class MarketRegimeEngine:
             else:
                 regime = "RETRACEMENT"
                 duration = random.uniform(480, 900)    # 8 to 15 mins
-                target = round(max(0.3920, current_price - random.uniform(0.0030, 0.0060)), 4)
+                target = round(max(safe_floor + 0.0050, current_price - random.uniform(0.0030, 0.0060)), 4)
 
         # ─── 3. ANTI-SNIPER & ANTI-REPEAT PATTERN RULE ───────────────────────
-        # Ensure target is NEVER within 15 pips of previous target (destroys double tops/bottoms)
         last_target = getattr(self, "last_target_price", None)
         if last_target is not None and abs(target - last_target) < 0.0016:
             shift = random.choice([-0.0025, 0.0025])
             target += shift
 
-        # Strictly enforce safety envelope: [0.3910, CANDLE_MAX_PRICE]
-        target = round(max(0.3910, min(self.safe_ceiling, target)), 4)
+        # Strictly enforce safety envelope: [safe_floor, safe_ceiling]
+        target = round(max(safe_floor, min(safe_ceiling, target)), 4)
         self.last_target_price = target
 
         self.state = self._create_new_state(regime, now, current_price, target, duration)
@@ -255,7 +297,8 @@ class MarketRegimeEngine:
                 noise += p["amp"] * math.sin(phase)
 
             final_price = price + noise
-            clamped = round(max(self.safe_floor, min(self.safe_ceiling, final_price)), 4)
+            safe_floor, safe_ceiling = self._get_effective_bounds()
+            clamped = round(max(safe_floor, min(safe_ceiling, final_price)), 4)
 
             # Slope calculation: dt = 2.0s
             dt = 2.0

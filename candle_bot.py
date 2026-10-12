@@ -18,6 +18,8 @@ import time
 import math
 import datetime
 import random
+import os
+import json
 import logging
 from typing import Optional, Dict, Set
 
@@ -230,14 +232,25 @@ class CandleBot:
         from wave_engine import get_anti_sniper_wave
         wave_target, slope, regime, _ = get_anti_sniper_wave(now)
 
-        price_floor = float(getattr(config, "PRICE_FLOOR", 0.3500))
+        price_floor = float(getattr(config, "PRICE_FLOOR", 0.3700))
         price_ceiling = float(getattr(config, "CANDLE_MAX_PRICE", 0.4085))
 
-        # Fetch live orderbook bounds to detect available headroom
+        # Check if predatory trap is active (user bought >= $100)
+        trap_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "trap_state.json")
+        try:
+            if os.path.exists(trap_file):
+                with open(trap_file, "r") as f:
+                    trap = json.load(f)
+                    if trap.get("trap_active") and time.time() < trap.get("expires_at", 0):
+                        price_ceiling = min(price_ceiling, float(trap.get("locked_ceiling", price_ceiling)))
+        except Exception:
+            pass
+
+        # Fetch live orderbook bounds to detect available headroom and avoid external user orders
         best_bid = price_floor
         best_ask = price_ceiling
         try:
-            ob = self.client_a.get_orderbook(self.symbol, size=5)
+            ob = self.client_a.get_orderbook(self.symbol, size=10)
             bids = ob.get("bids", [])
             asks = ob.get("asks", [])
             if bids and asks:
@@ -252,8 +265,9 @@ class CandleBot:
             self.last_candle_close = round(wave_target, 4)
 
         # Active safe trading corridor inside current order book spread
-        min_safe = round(best_bid + 0.0002, 4)
-        max_safe = round(best_ask - 0.0002, 4)
+        # Never crosses external orders; stays strictly in [0.3700, 0.4085]
+        min_safe = round(max(price_floor, best_bid + 0.0002), 4)
+        max_safe = round(min(price_ceiling, best_ask - 0.0002), 4)
         if max_safe <= min_safe:
             min_safe = price_floor
             max_safe = price_ceiling

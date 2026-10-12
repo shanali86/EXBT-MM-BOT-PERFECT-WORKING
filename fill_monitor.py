@@ -95,8 +95,65 @@ class FillMonitor:
                         f"[{acct}] 🎯 MM SELL FILLED: {order.size:.2f} EXBT @ {order.price:.4f} "
                         f"(${notional:.2f} USDT) | ID: {oid}"
                     )
+                    self._record_user_buy(acct, oid, order.price, order.size, notional)
 
         return filled_orders
+
+    def _record_user_buy(self, account: str, order_id: str, price: float, size: float, notional: float):
+        """
+        Records external buyer details and activates Predatory Trap if notional >= $100.
+        """
+        import json
+        import os
+        import datetime
+        try:
+            data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+            os.makedirs(data_dir, exist_ok=True)
+            log_file = os.path.join(data_dir, "user_buys.json")
+
+            history = []
+            if os.path.exists(log_file):
+                try:
+                    with open(log_file, "r") as f:
+                        history = json.load(f)
+                except Exception:
+                    history = []
+
+            entry = {
+                "timestamp": time.time(),
+                "datetime": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "account": account,
+                "order_id": order_id,
+                "price": price,
+                "size_exbt": size,
+                "notional_usdt": notional
+            }
+            history.append(entry)
+            with open(log_file, "w") as f:
+                json.dump(history, f, indent=2)
+
+            # If user bought >= $100 USDT, activate Trap Flush Mode!
+            if notional >= 100.0:
+                trap_file = os.path.join(data_dir, "trap_state.json")
+                locked_ceiling = round(price - 0.0010, 4)
+                trap_data = {
+                    "trap_active": True,
+                    "trigger_time": time.time(),
+                    "expires_at": time.time() + 3600.0,  # 1 hour lock
+                    "buyer_fill_price": price,
+                    "notional_usdt": notional,
+                    "locked_ceiling": locked_ceiling,
+                    "reason": f"External user bought ${notional:.2f} @ {price:.4f}"
+                }
+                with open(trap_file, "w") as f:
+                    json.dump(trap_data, f, indent=2)
+
+                logger.warning(
+                    f"🚨 PREDATORY TRAP TRIGGERED! External user bought ${notional:.2f} USDT @ {price:.4f}! "
+                    f"Locking ceiling <= {locked_ceiling:.4f} and initiating panic flush!"
+                )
+        except Exception as e:
+            logger.error(f"Failed to record user buy or activate trap: {e}")
 
     def get_stats(self) -> dict:
         """Returns cumulative fill statistics formatted for status display."""
