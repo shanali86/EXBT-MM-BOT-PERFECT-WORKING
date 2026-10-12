@@ -129,16 +129,35 @@ class CandleBot:
             buyer_lbl = "B" if self.turn_a_to_b else "A"
             seller_lbl = "A" if buyer_lbl == "B" else "B"
 
-            # Auto-rebalance safeguard: if either account drops below 150 USDT, steer cash flow to replenish it
+            # Free usable balance check to guarantee trade never fails with 10016 Currency not enough
             try:
-                bal_b_usdt = self.client_b.get_balance("usdt")
-                bal_a_usdt = self.client_a.get_balance("usdt")
-                if bal_b_usdt < 150.0 and bal_a_usdt > 300.0:
-                    buyer_lbl, seller_lbl = "A", "B"  # A buys from B -> B receives USDT
-                elif bal_a_usdt < 150.0 and bal_b_usdt > 300.0:
-                    buyer_lbl, seller_lbl = "B", "A"  # B buys from A -> A receives USDT
-            except Exception:
-                pass
+                bals_a = self.client_a.get_balances().get("free", {})
+                bals_b = self.client_b.get_balances().get("free", {})
+                free_a_usdt = float(bals_a.get("USDT", 0.0))
+                free_b_usdt = float(bals_b.get("USDT", 0.0))
+                free_a_exbt = float(bals_a.get("EXBT", 0.0))
+                free_b_exbt = float(bals_b.get("EXBT", 0.0))
+
+                # If B has less than 150 free USDT, steer cash flow: A buys from B so B receives USDT
+                if free_b_usdt < 150.0 and free_a_usdt > 300.0:
+                    buyer_lbl, seller_lbl = "A", "B"
+                elif free_a_usdt < 300.0 and free_b_usdt > 500.0:
+                    buyer_lbl, seller_lbl = "B", "A"
+
+                buyer_free_usdt = free_a_usdt if buyer_lbl == "A" else free_b_usdt
+                seller_free_exbt = free_a_exbt if seller_lbl == "A" else free_b_exbt
+
+                # Strictly cap amount within 90% of available free balances
+                max_buy_exbt = (buyer_free_usdt * 0.90) / price
+                max_sell_exbt = seller_free_exbt * 0.90
+                amount = min(amount, max_buy_exbt, max_sell_exbt)
+                amount = round(amount, 2)
+            except Exception as e:
+                logger.debug(f"Free balance safeguard check: {e}")
+
+            if (price * amount) < 5.0:
+                logger.warning(f"Candle tick deferred: Available free funds below $5 minimum notional.")
+                return False
 
             seller_client = self.client_a if seller_lbl == "A" else self.client_b
             buyer_client = self.client_b if buyer_lbl == "B" else self.client_a
@@ -245,9 +264,9 @@ class CandleBot:
         else:
             is_green = rng.random() < 0.50  # Balanced alternation on flat shelves
 
-        # Proportional 1-minute body size (Gentle, realistic crypto increments)
+        # Proportional 1-minute body size (Dynamic, realistic crypto increments)
         if abs(target_diff) > 0.0025:
-            body = rng.uniform(0.0004, 0.0007)  # Gentle momentum move
+            body = rng.uniform(0.0005, 0.0008)  # Gentle momentum move
         elif abs(target_diff) > 0.0010:
             body = rng.uniform(0.0003, 0.0005)  # Smooth steady climb / dip
         else:
@@ -258,14 +277,14 @@ class CandleBot:
         has_wick = archetype_r > 0.85
         wick_size = rng.uniform(0.0001, 0.0002) if has_wick else 0.0000
 
-        # Natural volume tiering to break uniform combs
+        # $500K USD Volume Scaling: Organic distribution averaging ~175 EXBT/tick (~$500K+/day)
         vol_tier = rng.random()
         if vol_tier < 0.40:
-            base_size = rng.uniform(22.0, 38.0)   # Organic quiet flow
+            base_size = rng.uniform(90.0, 140.0)   # Organic quiet flow (avg ~115 EXBT = ~$46 USDT)
         elif vol_tier < 0.85:
-            base_size = rng.uniform(45.0, 85.0)   # Normal trading flow
+            base_size = rng.uniform(160.0, 230.0)  # Normal trading flow (avg ~195 EXBT = ~$79 USDT)
         else:
-            base_size = rng.uniform(95.0, 160.0)  # Momentum volume surge
+            base_size = rng.uniform(250.0, 360.0)  # Momentum volume surge (avg ~305 EXBT = ~$123 USDT)
 
         ticks = []
         if is_green:
@@ -303,7 +322,7 @@ class CandleBot:
                 (5, range(53, 59), close_p, f"Red Close @ {close_p:.4f}")
             ]
             pattern = "solid_red"
-            size = round(base_size * 0.85, 1)
+            size = round(base_size * 0.90, 1)
 
         return {
             "bucket": bucket,

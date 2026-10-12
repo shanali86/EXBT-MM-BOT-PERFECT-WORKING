@@ -106,7 +106,7 @@ class MarketRegimeEngine:
             "start_price": round(start_price, 4),
             "target_price": round(target_price, 4),
             "shelf_price": round(target_price, 4),
-            "shelf_amp": round(random.uniform(0.0006, 0.0014), 4),
+            "shelf_amp": round(random.uniform(0.0007, 0.0012), 4),
             "prev_regime": getattr(self, "state", {}).get("regime", None) if hasattr(self, "state") else None
         }
         return state
@@ -120,10 +120,10 @@ class MarketRegimeEngine:
         self.recent_swing_low = min(self.recent_swing_low, current_price)
 
         # ─── ORGANIC BTC-STYLE MARKOV STATE MACHINE ─────────────────────────
-        # 1. IMPULSIVE_UP: Strong multi-candle bullish drive (20-40 mins, 40-90 pips)
-        # 2. ZONE_CONSOLIDATION: Sideways resting base / bull flag (20-45 mins)
-        # 3. RETRACEMENT: Healthy shallow dip (15-25 mins, 20-45 pips)
-        # 4. ZONE_EXPANSION: Breakout continuation testing upper resistance
+        # 1. IMPULSIVE_UP: Strong multi-candle bullish drive (10-20 mins, 35-70 pips)
+        # 2. ZONE_CONSOLIDATION: Sideways resting base with sinusoidal breathing (10-20 mins)
+        # 3. RETRACEMENT: Healthy shallow dip (8-15 mins, 20-45 pips)
+        # 4. ZONE_EXPANSION: Breakout continuation testing upper resistance (12-23 mins)
 
         if prev == "IMPULSIVE_UP" or current_price >= (self.safe_ceiling - 0.0040):
             # After an impulsive upward drive:
@@ -131,13 +131,13 @@ class MarketRegimeEngine:
             # 40% chance of a healthy shallow retracement
             if r < 0.60:
                 regime = "ZONE_CONSOLIDATION"
-                duration = random.uniform(1200, 2400)  # 20 to 40 mins
-                target = round(max(self.safe_floor, current_price - random.uniform(0.0010, 0.0025)), 4)
+                duration = random.uniform(600, 1200)   # 10 to 20 mins
+                target = round(max(self.safe_floor, current_price - random.uniform(0.0008, 0.0022)), 4)
             else:
                 regime = "RETRACEMENT"
-                duration = random.uniform(900, 1800)   # 15 to 30 mins
+                duration = random.uniform(480, 900)    # 8 to 15 mins
                 # Retrace 38.2% to 50% of recent run, preserving higher low
-                retrace_amt = random.uniform(0.0035, 0.0065)
+                retrace_amt = random.uniform(0.0030, 0.0055)
                 target = round(max(self.safe_floor + 0.0100, current_price - retrace_amt), 4)
 
         elif prev == "RETRACEMENT" or current_price <= (self.safe_floor + 0.0120):
@@ -146,13 +146,13 @@ class MarketRegimeEngine:
             # 30% chance of accumulation base
             if r < 0.70:
                 regime = "ZONE_EXPANSION"
-                duration = random.uniform(1500, 2700)  # 25 to 45 mins
-                push_amt = random.uniform(0.0045, 0.0095)
+                duration = random.uniform(720, 1380)   # 12 to 23 mins
+                push_amt = random.uniform(0.0040, 0.0080)
                 target = round(min(self.safe_ceiling, current_price + push_amt), 4)
             else:
                 regime = "ZONE_CONSOLIDATION"
-                duration = random.uniform(1200, 2100)  # 20 to 35 mins
-                target = round(current_price + random.uniform(-0.0010, 0.0015), 4)
+                duration = random.uniform(600, 1080)   # 10 to 18 mins
+                target = round(current_price + random.uniform(-0.0008, 0.0012), 4)
 
         elif prev in ("ZONE_CONSOLIDATION", "CONSOLIDATION"):
             # From a resting shelf:
@@ -160,24 +160,24 @@ class MarketRegimeEngine:
             # 35% chance of shallow dip to shake weak hands
             if r < 0.65:
                 regime = "IMPULSIVE_UP"
-                duration = random.uniform(1200, 2400)  # 20 to 40 mins
-                push_amt = random.uniform(0.0040, 0.0085)
+                duration = random.uniform(600, 1200)   # 10 to 20 mins
+                push_amt = random.uniform(0.0035, 0.0075)
                 target = round(min(self.safe_ceiling, current_price + push_amt), 4)
             else:
                 regime = "RETRACEMENT"
-                duration = random.uniform(900, 1500)   # 15 to 25 mins
-                target = round(max(self.safe_floor + 0.0100, current_price - random.uniform(0.0025, 0.0050)), 4)
+                duration = random.uniform(480, 840)    # 8 to 14 mins
+                target = round(max(self.safe_floor + 0.0100, current_price - random.uniform(0.0020, 0.0045)), 4)
 
         else: # ZONE_EXPANSION or other
             # After expansion: hold base or consolidate
             if r < 0.60:
                 regime = "ZONE_CONSOLIDATION"
-                duration = random.uniform(1200, 2400)  # 20 to 40 mins
-                target = round(current_price - random.uniform(0.0008, 0.0020), 4)
+                duration = random.uniform(600, 1200)   # 10 to 20 mins
+                target = round(current_price - random.uniform(0.0006, 0.0018), 4)
             else:
                 regime = "RETRACEMENT"
-                duration = random.uniform(900, 1800)   # 15 to 30 mins
-                target = round(max(self.safe_floor + 0.0100, current_price - random.uniform(0.0030, 0.0060)), 4)
+                duration = random.uniform(480, 900)    # 8 to 15 mins
+                target = round(max(self.safe_floor + 0.0100, current_price - random.uniform(0.0025, 0.0050)), 4)
 
         # Clamping
         target = round(max(self.safe_floor + 0.0050, min(self.safe_ceiling, target)), 4)
@@ -207,14 +207,14 @@ class MarketRegimeEngine:
             return sp + (tp - sp) * eased
         elif regime in ("ZONE_CONSOLIDATION", "CONSOLIDATION"):
             shelf = self.state.get("shelf_price", tp)
-            amp = self.state.get("shelf_amp", 0.0008)
-            drift_wave = amp * math.sin(progress * math.pi * 3.0)
+            amp = self.state.get("shelf_amp", 0.0009)
+            drift_wave = amp * math.sin(progress * math.pi * 4.0)
             return shelf + drift_wave
         else:
             eased = self._quintic_ease(progress)
             shelf = sp + (tp - sp) * eased
-            amp = self.state.get("shelf_amp", 0.0005)
-            drift_wave = amp * math.sin(progress * math.pi * 2.0)
+            amp = self.state.get("shelf_amp", 0.0006)
+            drift_wave = amp * math.sin(progress * math.pi * 3.0)
             return shelf + drift_wave
 
     def get_anti_sniper_wave(self, now: float = None):
