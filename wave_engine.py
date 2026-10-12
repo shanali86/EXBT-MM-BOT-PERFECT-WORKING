@@ -46,11 +46,12 @@ class MarketRegimeEngine:
             "regime_state.json"
         )
         self.safe_floor = float(getattr(config, "PRICE_FLOOR", 0.3500))
-        self.safe_ceiling = float(getattr(config, "CANDLE_MAX_PRICE", 0.4085))
+        # Cap ceiling strictly below external sell wall (0.4060) so candles never get squashed
+        self.safe_ceiling = min(float(getattr(config, "CANDLE_MAX_PRICE", 0.4085)), 0.4055)
 
         # Recent swing anchor points to maintain higher lows / higher highs
-        self.recent_swing_low = max(self.safe_floor, 0.3980)
-        self.recent_swing_high = min(self.safe_ceiling, 0.4075)
+        self.recent_swing_low = max(self.safe_floor, 0.3960)
+        self.recent_swing_high = min(self.safe_ceiling, 0.4050)
 
         # Incommensurate prime-period waves for continuous non-repeating fractal noise
         self.primes = [

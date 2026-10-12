@@ -233,28 +233,50 @@ class CandleBot:
         price_floor = float(getattr(config, "PRICE_FLOOR", 0.3500))
         price_ceiling = float(getattr(config, "CANDLE_MAX_PRICE", 0.4085))
 
-        if self.last_candle_close is None:
-            try:
-                ob = self.client_a.get_orderbook(self.symbol, size=5)
-                bids = ob.get("bids", [])
-                asks = ob.get("asks", [])
-                if bids and asks:
-                    mid = (float(bids[0][0]) + float(asks[0][0])) / 2.0
-                    self.last_candle_close = round(mid, 4)
-                else:
-                    self.last_candle_close = round(wave_target, 4)
-            except Exception:
-                self.last_candle_close = round(wave_target, 4)
+        # Fetch live orderbook bounds to detect available headroom
+        best_bid = price_floor
+        best_ask = price_ceiling
+        try:
+            ob = self.client_a.get_orderbook(self.symbol, size=5)
+            bids = ob.get("bids", [])
+            asks = ob.get("asks", [])
+            if bids and asks:
+                best_bid = float(bids[0][0])
+                best_ask = float(asks[0][0])
+                if self.last_candle_close is None:
+                    self.last_candle_close = round((best_bid + best_ask) / 2.0, 4)
+        except Exception:
+            pass
 
-        # Continuity: Start right at previous candle close
-        open_p = round(max(price_floor, min(price_ceiling, self.last_candle_close)), 4)
+        if self.last_candle_close is None:
+            self.last_candle_close = round(wave_target, 4)
+
+        # Active safe trading corridor inside current order book spread
+        min_safe = round(best_bid + 0.0002, 4)
+        max_safe = round(best_ask - 0.0002, 4)
+        if max_safe <= min_safe:
+            min_safe = price_floor
+            max_safe = price_ceiling
+
+        # Continuity: Start right at previous candle close, within safe corridor
+        open_p = round(max(min_safe, min(max_safe, self.last_candle_close)), 4)
         rng = random.Random(bucket)
         target_diff = wave_target - open_p
 
-        # ─── SELECT FROM 10 DIVERSE CANDLESTICK ARCHETYPES ───────────────────
-        archetype_roll = rng.random()
-        if target_diff > 0.0006:
+        headroom_up = max_safe - open_p
+        headroom_down = open_p - min_safe
+
+        # ─── DYNAMIC HEADROOM-AWARE ARCHETYPE SELECTION ──────────────────────
+        # If price is pressed against the ceiling, MUST reject downward (SHOOTING_STAR, BEARISH_MARUBOZU)
+        # If price is pressed against the floor, MUST bounce upward (BULLISH_HAMMER, BULLISH_MARUBOZU)
+        # This completely guarantees NO candle will ever be squashed into a flat dash!
+        if headroom_up < 0.0006:
+            archetype = rng.choice(["SHOOTING_STAR", "BEARISH_MARUBOZU", "STANDARD_BEARISH", "SPINNING_TOP_RED"])
+        elif headroom_down < 0.0006:
+            archetype = rng.choice(["BULLISH_HAMMER", "BULLISH_MARUBOZU", "STANDARD_BULLISH", "SPINNING_TOP_GREEN"])
+        elif target_diff > 0.0006:
             # Bullish trend wave: biased towards upward expansion & bullish bodies
+            archetype_roll = rng.random()
             if archetype_roll < 0.30:
                 archetype = "STANDARD_BULLISH"
             elif archetype_roll < 0.55:
@@ -267,6 +289,7 @@ class CandleBot:
                 archetype = "SPINNING_TOP_GREEN"
         elif target_diff < -0.0006:
             # Bearish trend wave: biased towards downward expansion & bearish bodies
+            archetype_roll = rng.random()
             if archetype_roll < 0.30:
                 archetype = "STANDARD_BEARISH"
             elif archetype_roll < 0.55:
@@ -290,7 +313,7 @@ class CandleBot:
 
         # Helper to clamp prices safely inside bounds
         def clamp_p(val: float) -> float:
-            return round(max(price_floor, min(price_ceiling, val)), 4)
+            return round(max(min_safe, min(max_safe, val)), 4)
 
         # ─── CONSTRUCT 5 ORGANIC TICKS BASED ON CHOSEN ARCHETYPE ─────────────
         if archetype == "STANDARD_BULLISH":
